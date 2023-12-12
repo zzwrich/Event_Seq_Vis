@@ -1,0 +1,64 @@
+.uploadArea {
+	position: absolute;
+	top:0;
+	left:0;
+	height: 28%;
+	width:100%;
+	background-color: #f0f0f0;
+}
+.upload-demo {
+	position: relative;
+	top: 2%;
+}
+.codeExecutionArea{
+	position: absolute;
+	top: 6%;
+	width: 85%;
+	background-color: white;
+	border-radius: 8px;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.dataBlock {
+	position: absolute;
+	top: 69%;
+	height: 31%;
+	left: 0;
+	width: 100%;
+	background-color: #f0f0f0;
+}
+/* 历史记录面板样式 */
+.historyPanel {
+	position: absolute;
+	top: 28.6%;
+	height: 38.2%;
+	left: 0;
+	width: 96%;
+	background-color: #f0f0f0;
+	padding: 2%;
+	overflow-y: auto;
+}
+
+.historyList {
+	list-style: none;
+	padding: 0;
+}
+
+.historyItem {
+	padding: 5px 10px;
+	border-bottom: 1px solid #ddd;
+	cursor: pointer;
+	transition: background-color 0.3s;
+	color: rgba(0, 0, 0, 0.5);
+}
+
+.historyItem:hover {
+	background-color: #e0e0e0;
+}
+
+.deleteBtn {
+	position: absolute;
+	right: 3%;
+}

@@ -1,0 +1,213 @@
+.button-container {
+	position: absolute;
+	top: 0;
+	right: 0;
+	margin-right: 15px;
+	z-index: 9999;
+}
+
+.selected {
+	border: 2px solid #4CAF50; /* 绿色边框 */
+	background-color: rgba(76, 175, 80, 0.1); /* 淡绿色背景 */
+	box-shadow: 0px 0px 10px 0px rgba(76, 175, 80, 0.5); /* 绿色阴影 */
+	transform: scale(1.01); /* 轻微放大 */
+	transition: all 0.3s ease; /* 平滑过渡效果 */
+}
+
+/* 表格容器样式 */
+.el-table-wrapper {
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+	background-color: #fff;
+	padding: 10px;
+	overflow: auto;
+}
+
+/* 表格样式 */
+.el-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+/* 表头样式 */
+.el-table thead th {
+	border: 1px solid #e0e0e0;
+	padding: 10px;
+	text-align: left;
+	background-color: #f3f3f3;
+	font-weight: bold;
+}
+
+/* 表格数据样式 */
+.el-table tbody td {
+	border: 1px solid #e0e0e0;
+	padding: 10px;
+	text-align: left;
+}
+
+/* 鼠标悬停样式 */
+.el-table tbody tr:hover {
+	background-color: #f0f0f0;
+}
+
+.el-table-row:hover {
+	background-color: #f0f0f0;
+}
+
+/*按钮样式*/
+.el-button {
+	display: inline-block;
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	background: #409EFF;
+	border: 1px solid #dcdfe6;
+	color: #fff;
+	-webkit-appearance: none;
+	text-align: center;
+	box-sizing: border-box;
+	outline: none;
+	margin-left: 5px;
+	transition: .1s;
+	font-weight: 500;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	padding: 12px 20px;
+	font-size: 14px;
+	border-radius: 4px;
+}
+
+.el-button:hover,
+.el-button:focus {
+	background: #66b1ff;
+	border-color: #66b1ff;
+	color: #fff;
+}
+
+.el-button:active {
+	background: #3a8ee6;
+	border-color: #3a8ee6;
+	color: #fff;
+}
+
+.event-selected {
+	stroke: #ff0; /* 外边框颜色，可以根据需要调整 */
+	stroke-width: 2px; /* 外边框宽度 */
+	fill-opacity: 0.8; /* 填充透明度 */
+	stroke-opacity: 0.9; /* 外边框透明度 */
+	filter: url(#glow); /* 应用发光滤镜 */
+}
+/*高亮样式*/
+.highlighted-username {
+	fill: #F56C6C !important;
+	font-size: 1.2em;
+}
+
+/* 勾选框样式 */
+.el-checkbox {
+	padding-left: 45px;
+}
+
+ /*隐藏默认的勾选框 */
+.el-checkbox input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	cursor: pointer;
+	height: 0;
+	width: 0;
+}
+
+/* 创建自定义勾选框外观 */
+.el-checkbox span {
+	position: absolute;
+	top: 0;
+	left: 0;
+	margin-top: 2px;
+	margin-left: 8px;
+	width: 30px;
+	height: 30px;
+	background-color: #fff;
+	border: 1px solid #dcdfe6;
+	border-radius: 4px;
+}
+
+/* 鼠标悬停时的勾选框外观 */
+.el-checkbox:hover input ~ span {
+	border-color: #c0c4cc;
+}
+
+/* 当勾选框被选中时的样式 */
+.el-checkbox input:checked ~ span {
+	background-color: #409eff;
+	border-color: #409eff;
+}
+
+/* 勾选框内的勾的样式 */
+.el-checkbox span:after {
+	content: "";
+	position: absolute;
+	display: none;
+}
+
+/* 当勾选框被选中时显示勾 */
+.el-checkbox input:checked ~ span:after {
+	display: block;
+	left: 10px;
+	top: 6.5px;
+	width: 5px;
+	height: 10px;
+	border: solid white;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+/* 输入框样式 */
+.el-input {
+	border: 1px solid #dcdfe6;
+	border-radius: 4px;
+	width: 10px;
+	margin-left: 10px; /* 和标签之间的间距 */
+	box-sizing: border-box;
+	transition: border-color .2s;
+}
+
+.el-input:hover {
+	border-color: #c0c4cc;
+}
+
+.el-input:focus {
+	outline: none;
+	border-color: #409eff;
+}
+
+/* 标签样式 */
+.time-input-label {
+	color: #606266;
+	font-size: 14px;
+	line-height: 1;
+	vertical-align: middle;
+}
+
+/* 范围标签样式 */
+.range-label {
+	color: #606266;
+	font-size: 14px;
+	line-height: 1;
+	vertical-align: middle;
+}
+
+/* 包装容器样式 */
+.input-container {
+	width: 460px;
+	display: flex;
+	align-items: center;   /* 垂直居中对齐 */
+	gap: 10px;             /* 子元素之间的间距 */
+}
+
+.controls-container {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
