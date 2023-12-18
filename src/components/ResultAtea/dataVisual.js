@@ -1,10 +1,16 @@
 import * as echarts from 'echarts';
 import * as d3 from 'd3';
-var chart
+import store from '@/store'
+
+let usernameTextWidth = {}
 
 function formatDateTime(dateTimeString) {
     const date = new Date(dateTimeString);
     return date.toLocaleString(); // 使用默认的本地化格式
+}
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})` : null;
 }
 // 解析操作类型 暂时默认取首字母!!!
 function parseAction(action) {
@@ -44,23 +50,28 @@ function containsPattern(sequence, pattern) {
     }
     return false;
 }
-function findSequencesContainingSubsequence(data, subsequence,isFuzzy) {
+function findSequencesContainingSubsequence(data, subsequence, seqView,isFuzzy) {
     const matchingSequences = {};
 
     Object.keys(data).forEach(user => {
-        const keys = Object.keys(data[user]);
-        const numberOfKeys = keys.length;
-        let userEvents
-        if (numberOfKeys === 2) {
-            if(keys[1].includes("时间")){
-                userEvents = data[user][keys[0]];
-            }
-            else {
-                userEvents = data[user][keys[1]];
-            }
-        } else {
-            userEvents = data[user]['执行语句']
-        }
+        // const keys = Object.keys(data[user]);
+        // const numberOfKeys = keys.length;
+        // let userEvents
+        // if (numberOfKeys === 2) {
+        //     if(keys[1].includes("时间")){
+        //         userEvents = data[user][keys[0]];
+        //     }
+        //     else {
+        //         userEvents = data[user][keys[1]];
+        //     }
+        // }
+        // else if (numberOfKeys === 1){
+        //     userEvents = data[user][keys[0]];
+        // }
+        // else {
+        //     userEvents = data[user]['执行语句']
+        // }
+        const userEvents = data[user][seqView];
         let parsedUserEvents = {}
         for (let key in userEvents) {
             parsedUserEvents[key] = parseAction(userEvents[key])
@@ -80,31 +91,16 @@ function findSequencesContainingSubsequence(data, subsequence,isFuzzy) {
 }
 
 // 从数据中提取操作类型并为每种类型分配颜色
-function generateColorMap(data) {
+function generateColorMap(data,seqView) {
     const uniqueActionTypes = new Set();
     // 遍历数据，提取所有不同的操作类型
     Object.values(data).forEach(userEvents => {
-        const keys = Object.keys(userEvents);
-        const numberOfKeys = keys.length;
-        let events
-        if (numberOfKeys === 2) {
-            if(keys[1].includes("时间")){
-                events = userEvents[keys[0]];
-            }
-            else {
-                events = userEvents[keys[1]];
-            }
-            events.forEach(action => {
-                // 提取操作类型，这里假设操作类型位于空格前的字符串
-                const actionType = parseAction(action);
-                uniqueActionTypes.add(actionType);
-            })
-        }
-        else {
-            userEvents['执行语句'].forEach(action => {
+        const events = userEvents[seqView];
+        events.forEach(action => {
+            // 提取操作类型，这里假设操作类型位于空格前的字符串
             const actionType = parseAction(action);
             uniqueActionTypes.add(actionType);
-        })}
+        })
     });
 
     // 为每种操作类型分配颜色
@@ -117,7 +113,7 @@ function generateColorMap(data) {
 
     return colorMap;
 }
-function convertToTreeData(data) {
+function convertToTreeData(data,seqView) {
     // 初始化树结构
     const root = { name: "root", children: [] };
     function buildTree(node, path, statements) {
@@ -136,20 +132,7 @@ function convertToTreeData(data) {
 
     // 遍历每个用户的执行语句
     Object.values(data).forEach(user => {
-        const keys = Object.keys(user);
-        const numberOfKeys = keys.length;
-        if (numberOfKeys === 2) {
-            if(keys[1].includes("时间")){
-                buildTree(root, "root", user[keys[0]]);
-            }
-            else {
-                buildTree(root, "root", user[keys[1]]);
-            }
-
-        }
-        else {
-            buildTree(root, "root", user['执行语句']);
-        }
+        buildTree(root, "root", user[seqView]);
     });
 
     return root;
@@ -163,15 +146,105 @@ function toggleVisibility(element, button) {
         button.textContent = '展开';
     }
 }
+//柱状图
+function getBarChartOption(data) {
+    const outerKeys = Object.keys(data);
+
+    return {
+        title: {
+            text: '计数结果',
+        },
+        tooltip: {
+            trigger: 'axis',
+        },
+        toolbox: {
+            show: true,
+            feature: {
+                mark: { show: true },
+                dataView: { show: true, readOnly: false },
+                magicType: { show: true, type: ['line', 'bar'] },
+                restore: { show: true },
+                saveAsImage: { show: true }
+            }
+        },
+        legend: {
+            data: outerKeys,
+        },
+        xAxis: {
+            type: 'category',
+            data: Object.keys(data[outerKeys[0]]),
+        },
+        yAxis: {
+            type: 'value',
+        },
+        series: outerKeys.map(key => ({
+            name: key,
+            type: 'bar',
+            data: Object.keys(data[key]).map(innerKey => data[key][innerKey])
+        }))
+    };
+}
+// 饼状图
+function getPieChartOption(data) {
+    const seriesData = [];
+    for (const outerKey in data) {
+        for (const innerKey in data[outerKey]) {
+            seriesData.push({
+                name: innerKey,
+                value: data[outerKey][innerKey]
+            });
+        }
+    }
+
+    return {
+        title: {
+            text: '计数结果',
+        },
+        tooltip: {
+            trigger: 'item',
+            formatter: '{a} <br/>{b}: {c} ({d}%)'
+        },
+        toolbox: {
+            show: true,
+            feature: {
+                mark: { show: true },
+                dataView: { show: true, readOnly: false },
+                restore: { show: true },
+                saveAsImage: { show: true }
+            }
+        },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: seriesData.map(item => item.name),
+        },
+        series: [
+            {
+                name: '事件个数',
+                type: 'pie',
+                radius: '55%',
+                data: seriesData,
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+}
+
 export default {
-    chooseWhich(operation, containerId, data, visualType){
-        // 销毁现有元素
+    chooseWhich(operation, containerId, data, visualType, seqView){
         const divElement = document.getElementById(containerId);
         if(divElement.firstChild){
             while (divElement.firstChild) {
                 divElement.removeChild(divElement.firstChild);
             }
         }
+
         if (["filter", "original", "difference_set", "intersection_set"].includes(operation)) {
             this.createTable(containerId, data);
         }
@@ -179,17 +252,26 @@ export default {
             this.createList(containerId, data);
         }
         if(operation === "unique_count" || operation === "count"){
-            this.createBarChart(containerId, data);
+            let option
+            if(visualType==null || visualType==="barChart"){
+                this.createChart(containerId, data, "bar");
+            }
+            else{
+                this.createChart(containerId, data, "pie");
+            }
         }
         if(operation === "group_by" || operation === "seq_view"){
             if(visualType==null || visualType==="timeLine"){
-                this.createTimeLine(containerId, data);
+                this.createTimeLine(containerId, data, seqView);
             }
             else if(visualType==="hierarchy"){
-                this.createHierarchy(containerId, convertToTreeData(data));
+                this.createHierarchy(containerId, convertToTreeData(data,seqView));
             }
             else if(visualType==="sunburst"){
-                this.createIcicle(containerId, convertToTreeData(data));
+                this.createIcicle(containerId, convertToTreeData(data,seqView));
+            }
+            else{
+                this.createTimeLine(containerId, data, seqView);
             }
         }
     },
@@ -200,11 +282,11 @@ export default {
             console.error('Invalid or empty data provided to createTable');
             return;
         }
-
         // 创建包含表格的滚动容器的 HTML
         let tableHtml = '<div class="el-table-wrapper">';
-        tableHtml += '<table class="el-table">';
+        tableHtml += '<button id="exportButton" class="el-button" style="margin-left: 0">导出表格</button>';
 
+        tableHtml += '<table class="el-table">';
         // 添加表头
         tableHtml += '<thead><tr>';
         Object.keys(data).forEach(key => {
@@ -234,10 +316,43 @@ export default {
         tableHtml += '</tbody>';
         tableHtml += '</table></div>';
 
+        function exportTableToCSV(filename) {
+            const csv = [];
+            const rows = document.querySelectorAll("#" + containerId + " .el-table tr");
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = [], cols = rows[i].querySelectorAll("td, th");
+
+                for (let j = 0; j < cols.length; j++) {
+                    const text = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, "").replace(/(\s\s+)/gm, " ");
+                    row.push(`"${text}"`);
+                }
+
+                csv.push(row.join(","));
+            }
+            // 正常显示中文
+            const BOM = "\uFEFF";
+            const csvData = BOM + csv.join("\n");
+
+            const csvFile = new Blob([csvData], { type: "text/csv" });
+            const downloadLink = document.createElement("a");
+
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
         // 获取目标容器元素
         const container = document.getElementById(containerId);
         if (container) {
             container.innerHTML = tableHtml;
+            // 绑定导出按钮的点击事件
+            document.getElementById('exportButton').addEventListener('click', function () {
+                exportTableToCSV('exported_table.csv');
+            });
         } else {
             console.error(`Container with ID '${containerId}' not found.`);
         }
@@ -315,57 +430,37 @@ export default {
     container.appendChild(topLevelTable);
     },
 
-    createBarChart(containerId, data) {
-        // 创建图表容器
-        const chartContainer = document.getElementById(containerId);
-        if (!chartContainer) {
+    createChart(containerId, data, chartType) {
+        const container = document.getElementById(containerId);
+        if (!container) {
             return;
         }
-
-        if (chart != null) {
-            chart.dispose();//销毁
+        let chartContainer = container.querySelector('.echart-container');
+        if (!chartContainer) {
+            chartContainer = document.createElement('div');
+            chartContainer.className = "echart-container";
+            chartContainer.style.width = '100%'; // 设置宽度
+            chartContainer.style.height = '100%'; // 设置高度，根据需要调整
+            container.appendChild(chartContainer);
         }
-        chart = echarts.init(document.getElementById(containerId));//初始化
 
-        // 获取外层字典的键（用于确定需要绘制几个柱状图）
-        const outerKeys = Object.keys(data);
+        let myChart = echarts.getInstanceByDom(chartContainer);
+        if (myChart) {
+            myChart.dispose();
+        }
+        myChart = echarts.init(chartContainer);
 
-        const option = {
-            title: {
-                text: '计数结果',
-            },
-            toolbox: {
-                show: true,
-                feature: {
-                    mark: { show: true },
-                    dataView: { show: true, readOnly: false },
-                    magicType: { show: true, type: ['line', 'bar'] },
-                    restore: { show: true },
-                    saveAsImage: { show: true }
-                },
-            },
-            legend: {
-                data: outerKeys, // 图例项，即外层字典的键
-            },
-            xAxis: {
-                type: 'category',
-                data: Object.keys(data[outerKeys[0]]), // X 轴数据，取第一个外层字典的值的键
-            },
-            yAxis: {
-                type: 'value',
-            },
-            series: outerKeys.map((outerKey) => ({
-                name: outerKey, // 图例项名称
-                type: 'bar',
-                data: Object.keys(data[outerKey]).map((innerKey) => data[outerKey][innerKey]), // Y 轴数据，根据内层字典的键动态生成
-            })),
-        };
+        let option;
+        if (chartType === 'bar') {
+            option = getBarChartOption(data);
+        } else if (chartType === 'pie') {
+            option = getPieChartOption(data);
+        }
 
-        // 使用配置项绘制图表
-        chart.setOption(option);
+        myChart.setOption(option);
     },
 
-    createTimeLine(containerId, data) {
+    createTimeLine(containerId, data, seqView) {
         // 检查数据的有效性
         if (!data || Object.keys(data).length === 0) {
             return;
@@ -375,25 +470,18 @@ export default {
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
 
-        const colorMap = generateColorMap(data);
+        const colorMap = generateColorMap(data,seqView);
         // 创建 SVG 容器
         let margin = { top: 0.02*containerWidth, left: 0.01*containerHeight, right: 0.02*containerWidth };
         // 找到最长的事件序列的长度
         let maxLength = 0;
         let eventCount= 0
         Object.values(data).forEach(user => {
-            // 获取对象的所有键
-            const keys = Object.keys(user);
-            // 获取键的数量
-            const numberOfKeys = keys.length;
-            if (numberOfKeys === 2) {
-                eventCount = user[keys[0]].length
-            }
-            else {eventCount = user['执行语句'].length} // 假设事件序列存储在 '执行语句' 字段中
+            eventCount = user[seqView].length
             if (eventCount > maxLength) {
                 maxLength = eventCount;
             }
-        });
+        })
 
         // 在容器中添加按钮
         const startButton = document.createElement('button');
@@ -458,11 +546,13 @@ export default {
         resetButton.innerText = '还原';
         resetButton.id = 'reset';
         resetButton.className = 'el-button';
+        // 创建选择框
+        const filterCheckbox = document.getElementById('checkbox-container') || document.createElement('div');
+        filterCheckbox.id = 'checkbox-container';
 
         // 创建新的包装容器
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'controls-container';
-
         // 将元素添加到新的包装容器中
         controlsContainer.appendChild(label);
         controlsContainer.appendChild(startButton);
@@ -497,26 +587,25 @@ export default {
             const event1 = Event1Input.value;
             const event2 = Event2Input.value;
             // 调用函数来筛选事件
-            const filteredEvents = filterEvents(data, startTime, endTime, event1, event2);
+            const filteredEvents = filterEvents(data, startTime, endTime, event1, event2, seqView);
             // 展示筛选出的事件
             displayFilteredEvents(filteredEvents);
         });
         // 筛选事件的函数
-        function filterEvents(data, startTime, endTime, event1, event2) {
+        function filterEvents(data, startTime, endTime, event1, event2, seqView) {
             let filteredEventsByUser = {};
+            let time_key
             Object.keys(data).forEach(username => {
                 const keys = Object.keys(data[username]);
-                let events, times
+                for(let i = 0; i < keys.length; i++) {
+                    if(keys[i].includes("时间")){
+                        time_key = keys[i]
+                    }
+                }
                 // 对每个用户初始化一个空列表来存储事件对
                 filteredEventsByUser[username] = [];
-                if(keys[1].includes("时间")){
-                    events = data[username][keys[0]];
-                    times = data[username][keys[1]];
-                }
-                else {
-                    events = data[username][keys[1]];
-                    times = data[username][keys[0]];
-                }
+                const times = data[username][time_key]
+                const events = data[username][seqView];
                 for (let i = 0; i < events.length; i++) {
                     for (let j = i+1; j < events.length; j++) {
                         const timeDiff = (Date.parse(times[j]) - Date.parse(times[i])) / (1000 * 60); // 将时间差转换为分钟
@@ -541,14 +630,20 @@ export default {
             });
             return filteredEventsByUser;
         }
+
+        let isChangeUsername = false
         function displayFilteredEvents(filteredEvents) {
-            const svg = d3.select(".svgContainer"); // 选择 SVG 容器
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             // 首先移除所有旧的线条
             svg.selectAll('.event-pairs').remove();
             // 先将所有事件圆形颜色设置为灰色
             svg.selectAll('circle').style('fill', 'grey');
             Object.keys(filteredEvents).forEach(username => {
                 filteredEvents[username].forEach(eventPair => {
+                    if (username.includes('.')) {
+                        username = username.replaceAll(".", "_");
+                        isChangeUsername = true;
+                    }
                     // 为属于eventPair的事件圆形添加特定类名
                     svg.selectAll(`.circle-${username}`).filter((d, i) => i === eventPair.event1 || i === eventPair.event2)
                         .classed('paired-event', true);
@@ -566,13 +661,14 @@ export default {
                         .attr('stroke', '#555555')
                         .attr('fill', 'none');
                 });
+                isChangeUsername = false;
             });
             // 将属于eventPair的事件圆形颜色设置回原色
             svg.selectAll('.paired-event').style('fill', (d) => colorMap[parseAction(d)]);
         }
-
+        // 重置按钮
         resetButton.addEventListener('click', function() {
-            const svg = d3.select(".svgContainer"); // 选择 SVG 容器
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             // 移除所有连接线
             svg.selectAll('.event-pairs').remove();
             // 将所有事件圆形的颜色还原到原始状态
@@ -580,14 +676,17 @@ export default {
                 .style('fill', d => colorMap[parseAction(d)])
                 .classed('paired-event', false); // 如果使用了特定类名进行高亮显示，移除该类名
         });
-
+        //获取事件坐标
         function getCircleCoordinates(username, index, data, containerWidth, containerHeight) {
+            if (username.includes('_') && isChangeUsername === true) {
+                username = username.replaceAll("_", ".");
+            }
             const scaleFactor = 0.025;
             let circleRadius = Math.min(containerWidth, containerHeight) * scaleFactor / 2;
             let circleSpacing = circleRadius / 2;
             const yPos = (Object.keys(data).indexOf(username) + 1) * (circleRadius * 2.5 + circleSpacing);
-            const circleX = (index + 2) * (circleRadius * 2 + circleSpacing);
-            return { x: circleX, y: yPos };
+            const xPos = (index + 1) * (circleRadius * 2 + circleSpacing) + usernameTextWidth["username"+containerId];
+            return { x: xPos, y: yPos };
         }
 
         // 计算圆形的半径
@@ -602,7 +701,7 @@ export default {
         }
         const svg = d3.select(container)
             .append('svg')
-            .attr('class', 'svgContainer')
+            .attr('class', 'svgContainer'+containerId)
             .attr('width', svgWidth)
             .attr('height', '100%')
             .attr('overflow','auto')
@@ -615,8 +714,19 @@ export default {
 
         // 添加图例矩形和文字
         const legendItems = Object.keys(colorMap);
+
+        function toggleCirclesVisibility(item) {
+            const circles = svg.selectAll('circle');
+            const isVisible = circles.filter(d => parseAction(d) === item).style('visibility') === 'visible';
+
+            circles.filter(d => parseAction(d) === item)
+                .style('visibility', isVisible ? 'hidden' : 'visible');
+        }
+
         let totalLegendWidth = 0; // 用于存储总宽度
         let legendY = 0;
+        // 点击图例变色
+        const highlightColor = "#909399"; // 高亮颜色，比如灰色
         legendItems.forEach((item, index) => {
             const rectSize = Math.min(containerWidth, containerHeight) * 0.02;
             // 添加图例文字
@@ -643,8 +753,17 @@ export default {
             legendText
                 .attr('x', legendX+rectSize*1.5+legendTextWidth/2).attr('y', legendY+ rectSize*0.6)
                 .attr('text-anchor', 'middle').attr('alignment-baseline', 'middle')
-                .style('fill', "#909399") // 根据操作类型选择颜色
-                .style('font-weight', 'bold');
+                .style('fill', colorMap[item]) // 根据操作类型选择颜色
+                .style('font-weight', 'bold')
+                .style('cursor', 'pointer') // 设置鼠标悬浮时显示手指样式
+                .on('click', function() {
+                // 切换与此图例项相关的事件圆形的可见性
+                toggleCirclesVisibility(item);
+                const currentColor = d3.select(this).style('fill');
+                const originalColorRgb = hexToRgb(colorMap[item]);
+                // 切换颜色
+                d3.select(this).style('fill', currentColor === originalColorRgb ? highlightColor : colorMap[item]);
+            });
 
             // 添加图例矩形
             legend.append('rect')
@@ -657,51 +776,85 @@ export default {
 
         // 遍历数据，创建事件符号
         Object.keys(data).forEach((username, index) => {
-            const keys = Object.keys(data[username]);
-            const numberOfKeys = keys.length;
-            let events = []
-            if (numberOfKeys === 2) {
-                if(keys[1].includes("时间")){
-                    events = data[username][keys[0]];
-                }
-                else {
-                    events = data[username][keys[1]];
-                }
-            }
-            else {
-                events = data[username]['执行语句'];
-            }
+            const events = data[username][seqView];
             const yPos = (index+1) * (circleRadius * 2.5 + circleSpacing); // 控制圆形的垂直位置
+            let newUsername= ""
+            if (username.includes('.')) {
+                newUsername = username.replaceAll(".", "_");
+            }
+            else{newUsername = username}
             // 显示用户名
             const usernameText = svg.append('text')
                 .attr('x', 10) // 控制用户名的水平位置
                 .attr('y', yPos+circleRadius/2)
                 .text(username)
-                .attr("class",`username-${username}`)
+                .attr("class",`username-${newUsername}`)
                 .style('fill', "#909399")
                 .style('font-weight', 'bold');
-            if (username.includes('.')) {
-                username = username.replaceAll(".", "_");
-            }
             // 获取用户名文本的宽度
-            const usernameTextWidth = usernameText.node().getBBox().width;
+            usernameTextWidth["username"+containerId] = usernameText.node().getBBox().width;
+
+            // 在 SVG 容器外部创建一个提示框元素
+            const tooltip = d3.select(container)
+                .append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("padding", "10px")
+                .style("background", "white")
+                .style("border", "1px solid #000")
+                .style("border-radius", "5px")
+                .style("pointer-events", "none"); // 确保提示框不会干扰鼠标事件
+
+            const containerRect = document.getElementById(containerId).getBoundingClientRect();
 
             // 创建事件符号
-            const circles = svg.append('g').selectAll(`.circle-${username}`)
+            const circles = svg.append('g').selectAll(`.circle-${newUsername}`)
                 .data(events)
                 .enter()
                 .append('circle')
-                .attr('class', `circle-${username}`)
-                .attr('cx', (d, i) => (i+1) * (circleRadius * 2 + circleSpacing) + usernameTextWidth) // 控制圆形的水平位置
+                .attr('class', `circle-${newUsername}`)
+                .attr('id', (d, i) =>i)
+                .attr('cx', (d, i) => (i+1) * (circleRadius * 2 + circleSpacing) + usernameTextWidth["username"+containerId]) // 控制圆形的水平位置
                 .attr('cy', yPos)
-                .attr('overflow','scroll')
                 .attr('r', circleRadius)
-                .style('fill', d => colorMap[parseAction(d)]); // 根据操作类型选择颜色
+                .style('fill', d => colorMap[parseAction(d)]) // 根据操作类型选择颜色
+                .on("mouseover", function(event, d) {
+                    const circleId = this.id; // 获取当前圆形的 ID
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    // 创建要显示的信息字符串
+                    let tooltipContent = "<strong>" + username + "</strong><br/>";
+                    Object.keys(data[username]).forEach(key => {
+                        if (Array.isArray(data[username][key]) && data[username][key][circleId] !== undefined) {
+                            let cellData = data[username][key][circleId]
+                            if (typeof cellData === 'string' && cellData.includes('GMT')) {
+                                // 如果数据是日期时间字符串类型，进行格式化
+                                cellData = formatDateTime(cellData);
+                            }
+                            tooltipContent += key + ": " + cellData + "<br/>";
+                        }
+                    });
+                    tooltip.html(tooltipContent) // 设置提示框的内容
+                        .style("left", (event.pageX)-containerRect.left + "px")
+                        .style("top", (event.pageY - containerRect.top) + "px");
+                })
+                .on("mouseout", function(d) {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
         });
         // 更改筛选出来的序列样式
         function highlightSequences(matchingSequences) {
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             svg.selectAll(".highlighted-username").classed("highlighted-username", false);
             Object.keys(matchingSequences).forEach(username => {
+                if (username.includes('.')) {
+                    username = username.replaceAll(".", "_");
+                    isChangeUsername = true;
+                }
                 svg.select(`.username-${username}`)
                     .classed("highlighted-username", true); // 添加高亮类
             });
@@ -714,12 +867,12 @@ export default {
             if (!event.selection) return;
             const [[x0, y0], [x1, y1]] = event.selection;
             const selectedData = [];
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             svg.selectAll("circle")
                 .classed("event-selected", function(d) {
                     const cx = d3.select(this).attr("cx");
                     const cy = d3.select(this).attr("cy");
                     const isSelected = x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
-
                     if (isSelected) {
                         selectedData.push(parseAction(d));  // 将选中的数据添加到数组中
                     }
@@ -728,21 +881,48 @@ export default {
 
             let matchingSequences={}
             if (document.getElementById('query-selection').checked) {
-                matchingSequences = findSequencesContainingSubsequence(data, selectedData, true);
+                matchingSequences = findSequencesContainingSubsequence(data, selectedData,seqView,true);
             } else {
-                matchingSequences = findSequencesContainingSubsequence(data, selectedData,false);
+                matchingSequences = findSequencesContainingSubsequence(data, selectedData,seqView, false);
             }
             highlightSequences(matchingSequences);
+            // 移除旧的点击区域
+            svg.selectAll('.clickable-region').remove();
+            // 创建一个点击响应区域，是否加入异常序列
+            svg.append('rect')
+                .attr('class', 'clickable-region')
+                .attr('x', x0)
+                .attr('y', y0)
+                .attr('width', x1 - x0)
+                .attr('height', y1 - y0)
+                .style('fill', 'none')
+                .style('pointer-events', 'all')
+                .on('click', () => showConfirmationDialog(selectedData));
+
+        }
+        // 监听选中的异常事件
+        store.watch(() => store.state.selectedSeq, (newValue, oldValue) => {
+            const matchingSequences = findSequencesContainingSubsequence(data, newValue,seqView,true);
+            highlightSequences(matchingSequences);
+        });
+
+        function showConfirmationDialog(data) {
+            if (confirm('是否将选中的序列加入异常序列？')) {
+                store.commit('setUnusualSeq', data);
+            }
         }
         // 添加框选到 SVG 容器
         svg.append("g")
             .attr("class", "brush")
 
         startButton.addEventListener('click', function() {
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             svg.select(".brush").call(brush);
         });
 
         closeButton.addEventListener('click', function() {
+            const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
+            svg.selectAll('.clickable-region').remove();
             svg.select(".brush").call(brush.move, null);
             svg.select(".brush").selectAll("*").remove(); // 移除 brush 的所有子元素
             svg.select(".brush").on(".brush", null); // 移除事件监听器
@@ -837,8 +1017,6 @@ export default {
                 const containerRect = document.getElementById(containerId).getBoundingClientRect();
                 const mouseX = event.clientX - containerRect.left; // 鼠标相对于容器的X坐标
                 const mouseY = event.clientY - containerRect.top;  // 鼠标相对于容器的Y坐标
-                console.log("mousex",mouseX)
-                console.log("mouseY",mouseY)
 
                 tooltip.transition()
                     .duration(200)

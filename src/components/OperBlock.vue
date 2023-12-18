@@ -48,14 +48,13 @@ export default {
       const offsetY = block5Rect.top;
 
       //判断是否被拖动至于指定位置
-      const blockElement = document.getElementsByClassName('item block2')[0];
+      const blockElement = document.getElementsByClassName("workflowArea")[0]
       const blockRect = blockElement.getBoundingClientRect();
       const blockLeft = blockRect.left;
       const blockRight = blockRect.right;
       const blockTop = blockRect.top;
       const blockBottom = blockRect.bottom;
       const block5Width = block5Rect.width;
-      const block5Height = block5Rect.height;
 
       //矩形块的初始坐标
       const rectCoordinates = []; // 存储矩形块的坐标
@@ -65,7 +64,7 @@ export default {
         return Math.min(rectWidth, rectHeight) / 10 + "px";
       }
 
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i < 8; i++) {
         const rectWidth= parseFloat(this.rectWidth.replace('%', ''))/100;
         const rectHeight= parseFloat(this.rectHeight.replace('%', ''))/100;
         const rectX = offsetX+((block5Width-rectWidth*rootWidth) /2); // 矩形块的x坐标
@@ -88,7 +87,7 @@ export default {
             .attr('ry', 10) // 圆角的 y 半径
             .on('mouseover', function() {
               d3.select(this)
-                  .attr('fill','#C0C4CC'); // 鼠标悬停时的填充颜色
+                  .attr('fill','#DCDCDC'); // 鼠标悬停时的填充颜色
             })
             .on('mouseout', function() {
               d3.select(this)
@@ -109,19 +108,24 @@ export default {
         // 应用阴影 filter 到矩形
         rect.style('filter', 'url(#drop-shadow)');
 
+        // 运算块文字
+        let textContent = ["filter","group_by","count","unique_count","seq_view",'unique_attr',"intersection_set","difference_set"]
 
-        // 添加文本
         const text = svg.append('text')
-            .text('Text ' + i) // 文本内容
-            .attr('x', textX) // 根据需要调整位置
+            .text(textContent[i]) // 使用数组中的文本
+            .attr('x', textX)
             .attr('y', textY)
             .attr('id','myText'+i)
+            .attr('fill','grey')
             .style('font-size', calculateFontSize(rect.attr('width'), rect.attr('height')))
+            .style('font-weight','bold')
             .attr('dominant-baseline', 'middle') // 垂直居中
-            .attr('text-anchor', 'middle') // 水平居中
+            .attr('text-anchor', 'middle'); // 水平居中
+
 
         rectCoordinates.push({ x: rectX, y: rectY }); // 将坐标添加到数组中
 
+        const vm = this; // 在事件处理器外部捕获 Vue 组件实例
         const drag = d3.drag()
             .on('start', function () {
               d3.select(this)
@@ -129,7 +133,6 @@ export default {
             })
             .on('drag', function () {
               const pt = d3.pointer(event);
-
               //矩形和文字同时移动
               const dragTarget=d3.select(this);
               const id=dragTarget.attr('id')
@@ -151,15 +154,22 @@ export default {
                 // 位置不匹配，恢复至初始位置
                 rect.attr('x', originX)
                     .attr('y', originY)
-                    // .style('stroke', 'blue');
                 text.attr('x', textX)
                     .attr('y', textY);
               } else {
-                d3.select(this)
-                    // .style('stroke', 'blue')
+                // 位置匹配，更新全局变量
+                rect.attr('x', originX)
+                    .attr('y', originY)
+                text.attr('x', textX)
+                    .attr('y', textY);
+                const dragTarget = d3.select(this);
+                const id = dragTarget.attr('id');
+                const index = parseInt(id.substring(id.length - 1)); // 提取索引号
+                const currentText = textContent[index]; // 获取当前文本内容
+                vm.$store.dispatch('saveSelectedOperator', currentText);
+                vm.$store.dispatch('saveIsDrag');
               }
             });
-
         rect.call(drag);
       }
     },

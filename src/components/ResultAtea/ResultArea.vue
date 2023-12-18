@@ -1,8 +1,8 @@
 <template>
   <div v-for="(box,index) in boxes" :key="box.id" :class="boxClass(box)" :style="boxStyle(box)" @click="selectBox(box)">
-<!--图表容器-->
-    <div :id="`chart-container-${box.id}`" class="chart-container" @click="hasChartElements(box) && $event.stopPropagation()" style="position: relative;height: 98%; width: 100%; overflow: auto; top: 2%;"></div>
-<!--按钮容器-->
+    <!--图表容器-->
+    <div :id="`chart-container-${box.id}`" class="chart-container" @click="hasChartElements(box) && $event.stopPropagation()" style="position: relative;height: 98%; width: 100%; overflow: auto; top: 25px;"></div>
+    <!--按钮容器-->
     <div class="button-container">
       <el-button @click="handleIncrement(boxes, index, rootWidth, rootHeight)" size="small">+</el-button>
       <el-button @click="handleDecrement(boxes, index)" :disabled="!canDecrement(box)" size="small">-</el-button>
@@ -66,7 +66,8 @@ watch(() => store.state.responseData, (newValue, oldValue) => {
   const operation = newValue.operation
   const data = newValue.result
   const visualType=store.state.visualType
-  dataVisual.chooseWhich(operation, containerId, data, visualType)
+  const seqView=store.state.seqView
+  dataVisual.chooseWhich(operation, containerId, data, visualType, seqView)
 });
 
 // 当组件挂载时执行

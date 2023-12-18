@@ -2,13 +2,19 @@
   <div class="data-table-container">
     <el-table
         :data="tableRows"
-        style="width: 100%"
+        style="width: 100%;cursor: pointer"
+        @header-click="headerClicked"
     >
       <el-table-column
           v-for="sheet in sheetNames"
           :key="sheet"
           :prop="sheet"
           :label="sheet">
+        <template v-slot="{ row }">
+          <div class="clickable-cell" @click="cellClicked(row[sheet], sheet)">
+            {{ row[sheet] }}
+          </div>
+        </template>
       </el-table-column>
     </el-table>
   </div>
@@ -34,7 +40,6 @@ export default {
       this.sheetNames.forEach(sheet => {
         maxRows = Math.max(maxRows, this.tableData[sheet].length);
       });
-
       const rows = [];
       for (let i = 0; i < maxRows; i++) {
         let row = {};
@@ -44,6 +49,15 @@ export default {
         rows.push(row);
       }
       return rows;
+    },
+  },
+  methods: {
+    cellClicked(cellValue, columnName) {
+      this.$store.dispatch('saveSelectedParameter',cellValue);
+    },
+    headerClicked(column, event) {
+      this.$store.dispatch('saveIsSelectData');
+      this.$store.dispatch('saveSelectedData', column.label || column.prop);
     }
   }
 };
@@ -58,5 +72,4 @@ export default {
   left:0;
   width:100%;
 }
-
 </style>

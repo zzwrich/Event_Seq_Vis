@@ -1,6 +1,6 @@
 <script setup>
   import operBlock from "./components/OperBlock.vue"
-  import operArea from "./components/OperArea.vue"
+  import operArea from "./components/OperArea/OperArea.vue"
   import filterArea from "./components/MainArea/FilterArea.vue"
   import resultArea from "./components/ResultAtea/ResultArea.vue"
 
@@ -18,7 +18,6 @@
       <result-area />
 		</div>
 		<div class="grid-item block5">
-			运算块
       <oper-block />
 		</div>
 	</div>
