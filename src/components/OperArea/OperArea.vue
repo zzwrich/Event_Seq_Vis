@@ -1,14 +1,17 @@
 <template>
   <div class="container">
-    <el-button @click="clearAll" style="position:absolute;right: 10px;top: 10px;z-index: 9999;">清除</el-button>
-    <div class="workflowArea"></div>
+    <el-button @click="clearAll" style="position:absolute;right: 10px;top: 10px;z-index: 1;">清除</el-button>
+    <el-button @click="showAll" style="position:absolute;right: 180px;top: 10px;z-index: 1;">显示全部</el-button>
+    <el-button @click="deleteNode(this.currentNode)" style="position:absolute;right: 80px;top: 10px;z-index: 1;">删除节点</el-button>
+    <div class="workflowArea" id="workflowContainer"></div>
   </div>
 </template>
 
 <script>
 import { mapState } from 'vuex';
-import * as d3 from 'd3';
+import * as d3 from "d3";
 import dagreD3 from 'dagre-d3';
+import store from "@/store/index.js";
 
 export default {
   data() {
@@ -20,7 +23,11 @@ export default {
       nodes: [],
       edges: [],
       currentNode: null,
-      maxText: ""
+      maxText: "",
+      links: null,
+      linksData: [],
+      // 存放路径(节点)与代码的对应关系
+      pathData: {}
     };
   },
   computed: {
@@ -29,8 +36,10 @@ export default {
       selectedOperator: state => state.selectedOperator,
       selectedParameter: state => state.selectedParameter,
       isDrag: state => state.isDrag,
-      isSelectedData: state => state.isSelectData
-    })
+      isSelectedData: state => state.isSelectData,
+      curExpression: state => state.curExpression,
+      isClickContainer: state => state.isClickContainer
+    }),
   },
   watch: {
     currentNode(newVal, oldVal) {
@@ -44,7 +53,7 @@ export default {
       this.clearAll()
       this.setupGraph()
       if (this.selectedData) {
-        this.addNode(this.selectedData, "circle");
+        this.addNode(this.selectedData);
       }
       this.$store.dispatch('clearCurExpression');
       this.handleNodeClick(this.currentNode);
@@ -56,20 +65,105 @@ export default {
       }
     },
     // 监听选择参数的变化
-    selectedParameter: {
-      handler(newVal) {
-        if (this.currentNode && newVal.length > 0) {
-          this.updateNodeWithSquare(this.currentNode, newVal[newVal.length - 1]);
-        }
-        this.handleNodeClick(this.currentNode)
-      },
-      deep: true
+    selectedParameter(newVal) {
+      if (this.currentNode && newVal) {
+        this.updateNodeWithSquare(this.currentNode, newVal);
+      }
+      this.handleNodeClick(this.currentNode)
+    },
+    // 监听代码的变化
+    isClickContainer(newVal) {
+      const myDiv =  document.getElementById(newVal)
+      let codeContext =myDiv.getAttribute("codeContext");
+      const svg = d3.select(".svgArea")
+      const nodeInPath = this.pathData[codeContext]
+      // 选择所有边，并根据条件筛选
+      svg.selectAll('.mylink')
+          .style('visibility', link => {
+            const sourceIndex = nodeInPath.indexOf(link.source);
+            const targetIndex = nodeInPath.indexOf(link.target);
+            // 检查是否是相邻的两个节点
+            if (sourceIndex !== -1 && targetIndex !== -1 && (targetIndex - sourceIndex) === 1) {
+              return 'visible';
+            } else {
+              return 'hidden';
+            }
+          });
+      svg.selectAll('.linkText')
+          .style('visibility', link => {
+            const sourceIndex = nodeInPath.indexOf(link.source);
+            const targetIndex = nodeInPath.indexOf(link.target);
+            // 检查是否是相邻的两个节点
+            if (sourceIndex !== -1 && targetIndex !== -1 && Math.abs(targetIndex - sourceIndex)=== 1) {
+              return 'visible';
+            } else {
+              return 'hidden';
+            }
+          });
+      this.nodes.forEach(n => {
+        svg.selectAll('.node')
+            .style('visibility', node => {
+              // 检查是否是相邻的两个节点
+              if (nodeInPath.includes(node)) {
+                return 'visible';
+              } else {
+                return 'hidden';
+              }
+            });
+        svg.selectAll('.mypath')
+            .style('visibility', path => {
+              const sourceIndex = nodeInPath.indexOf(path.v);
+              const targetIndex = nodeInPath.indexOf(path.w);
+              // 检查是否是相邻的两个节点
+              if (sourceIndex !== -1 && targetIndex !== -1 && Math.abs(targetIndex - sourceIndex)=== 1) {
+                return 'visible';
+              } else {
+                return 'hidden';
+              }
+            });
+        svg.selectAll('.edgeLabel')
+            .style('visibility', pathLabel => {
+              const sourceIndex = nodeInPath.indexOf(pathLabel.v);
+              const targetIndex = nodeInPath.indexOf(pathLabel.w);
+              // 检查是否是相邻的两个节点
+              if (sourceIndex !== -1 && targetIndex !== -1 && Math.abs(targetIndex - sourceIndex)=== 1) {
+                return 'visible';
+              } else {
+                return 'hidden';
+              }
+            });
+      })
     }
   },
   mounted() {
     this.setupGraph();
   },
   methods: {
+    clearAll(){
+      this.nodes = []
+      this.edges = []
+      this.nextNodeId = 0
+      this.nextEdgeId = 1
+      this.currentNode = null
+      this.graph = new dagreD3.graphlib.Graph().setGraph({})
+      this.$store.dispatch('clearSelectedParameter');
+      const divElement = document.getElementsByClassName('workflowArea')[0]
+      if(divElement.firstChild){
+        while (divElement.firstChild) {
+          divElement.removeChild(divElement.firstChild);
+        }
+      }
+    },
+
+    showAll(){
+      const svg = d3.select(".svgArea")
+      svg.selectAll('.mylink').style('visibility', 'visible');
+      svg.selectAll('.linkText').style('visibility', 'visible');
+      svg.selectAll('.node').style('visibility', 'visible');
+      svg.selectAll('.mypath').style('visibility', 'visible');
+      svg.selectAll('.edgeLabel').style('visibility', 'visible');
+    },
+
     addParameter(string, parameter) {
       let parts = string.split('.');
       // 找到最后一个函数调用
@@ -89,51 +183,47 @@ export default {
       return parts.join('.');
       },
 
-    clearAll(){
-      this.nodes = []
-      this.edges = []
-      this.nextNodeId = 0
-      this.nextEdgeId = 1
-      this.currentNode = null
-      this.graph = new dagreD3.graphlib.Graph().setGraph({})
-      this.$store.dispatch('clearSelectedParameter');
-      const divElement = document.getElementsByClassName('workflowArea')[0]
-      if(divElement.firstChild){
-        while (divElement.firstChild) {
-          divElement.removeChild(divElement.firstChild);
-        }
-      }
-    },
-
     setupGraph() {
       const container = document.getElementsByClassName('grid-item block3')[0]
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       // 初始化图形设置
-      this.graph.setGraph({ rankdir: 'LR', edgesep: 10, ranksep: 10, nodeseq:5, align:'DL', });
+      this.graph.setGraph({ rankdir: 'TB', edgesep: 10, ranksep: 10, nodeseq:5 });
       // 设置 SVG 和渲染器
-      const svg = d3.select(".workflowArea").append("svg").attr('width', containerWidth).attr('height', containerHeight).attr("class",'svgArea')
-      const inner = svg.append("g");
+      const offsetX = 50; // 水平偏移量
+      const offsetY = 50; // 垂直偏移量
+      const svg = d3.select(".workflowArea").append("svg").attr('width', containerWidth).attr('height', containerHeight)
+          .attr("class",'svgArea')
+      const inner = svg.append("g").attr("transform", `translate(${offsetX}, ${offsetY})`);
       // 用来后续更新图形
       this.updateGraph = () => {
-        inner.call(this.render, this.graph);
-        this.clickNodeEvents();
+        if (inner) {
+          inner.call(this.render, this.graph);
+          this.bindNodeEvents();
+        }
       };
+      this.updateGraph();
     },
 
-    addNode(data,shape) {
+    addNode(data, shape) {
       const newNodeId = `node${this.nextNodeId++}`;
-      this.nodes.push({ id: newNodeId, label: data, shape: shape });
-      if(newNodeId==="node0"){
-        this.graph.setNode(newNodeId, { label: data, shape: shape, class: `${shape}`, id:newNodeId,
+      this.nodes.push({ id: newNodeId, label: data});
+      if(data === " "){
+        this.graph.setNode(newNodeId, { label: data, id:newNodeId,
           style:"fill:#6CA6CD;cursor:pointer",
-          labelStyle:"fill:white;font-size:15px;font-weight:bold",});
+          height: 34,
+          width:70,
+          rx: 10,
+          ry:10});
       }
       else{
-        this.graph.setNode(newNodeId, { label: " ", shape: shape, class: `${shape}`, id:newNodeId,
+        this.graph.setNode(newNodeId, { label: data, id:newNodeId,
           style:"fill:#6CA6CD;cursor:pointer",
-        });
+          height: 34,
+          rx: 10,
+          ry:10,
+          labelStyle:"fill:white;font-size:18px;font-weight:bold"});
       }
       this.currentNode = newNodeId;
       this.updateGraph();
@@ -141,27 +231,108 @@ export default {
 
     addEdge(source, operation, target) {
       this.edges.push({ source: source, target: target, label: operation });
-      this.graph.setEdge(source, target, { label: operation,
-        style: "fill:grey;stroke:grey;stroke-width:2px",
-        labelStyle: "fill:#778899;font-weight:bold",
-        arrowhead:"vee",
-        arrowheadStyle:"fill:grey" });
-      this.updateGraph();
+      if(this.selectedOperator==="seq_view"){
+        this.graph.setEdge(source, target, { label: operation,class:"mypath",
+          style: "fill:none;stroke:grey;stroke-width:2px",
+          labelStyle: "fill:#778899;font-weight:bold",
+          arrowhead:"vee",
+          arrowheadStyle:"fill:grey;" });
+        this.updateGraph();
+      }
+      else{
+        this.linksData.push({ source: source, target: target, label: operation });
+        const sourceNode = this.graph.node(source);
+        const targetNode = this.graph.node(target);
+        // 计算弧线的路径
+        const pathData = this.calculateArcPath(sourceNode, targetNode);
+        const svg = d3.select(".svgArea")
+        // 添加弧线到 SVG
+        this.links = svg.selectAll('.mylink')
+            .data(this.linksData, d => d.id)  // 使用 key 函数
+            .enter()
+            .append('path')
+            .attr('d', pathData)
+            .attr('stroke', 'grey')
+            .attr('fill', 'none')
+            .attr('stroke-width', 2)
+            .attr('class', 'mylink')
+            .attr("id", d => `${d.source}-${d.target}`)
+
+        // 为每个弧线生成唯一的ID
+        const uniqueId = `textPath_${this.linksData.length}`;
+        // 添加 <defs> 元素
+        const defs = svg.append('defs');
+        // 为每个 label 创建 <textPath>
+        const linkTextPaths = defs.selectAll('.linkTextPath')
+            .data(this.linksData)
+            .enter()
+            .append('path')
+            .attr('id', (_, i) => `${uniqueId}_${i}`)
+            .attr('d', pathData);
+        // 添加 label 到每个弧线
+        const linksTexts = svg.selectAll('.linkText')
+            .data(this.linksData)
+            .enter()
+            .append('text')
+            .attr('dy', -5)  // 垂直方向微调
+            .append('textPath')
+            .attr('xlink:href', (_, i) => `#${uniqueId}_${i}`)
+            .text(operation)
+            .attr('class', 'linkText')
+            .attr("id", d => `${d.source}-${d.target}`)
+            .style('fill', '#778899')
+            .style('font-weight','bold')
+            .attr('startOffset', '20%');
+      }
+    },
+    getNodePosition(node) {
+      const x = node.x;
+      const y = node.y;
+      return {x, y};
     },
 
-    // 为节点绑定点击事件
-    clickNodeEvents() {
+    calculateArcPath(sourceNode, targetNode) {
+      const height = 26
+      // 根据需要计算弧线的路径，这里简化为一个弧线
+      const sourcePosition = this.getNodePosition(sourceNode);
+      const targetPosition = this.getNodePosition(targetNode);
+
+      // 在实际应用中，您可能需要更复杂的计算方法
+      const curvePath = d3.path();
+      curvePath.moveTo(sourcePosition.x+50, sourcePosition.y+50-height);
+      curvePath.quadraticCurveTo(
+          (sourcePosition.x + targetPosition.x) / 2+50,
+          (sourcePosition.y + targetPosition.y) / 2+50-40-height ,
+          targetPosition.x+50,
+          targetPosition.y+50-height
+      );
+
+      return curvePath.toString();
+    },
+
+    // 为节点绑定事件
+    bindNodeEvents() {
+      const svg = d3.select(".svgArea")
       this.nodes.forEach(node => {
         d3.select(`#${node.id}`).on('click', () => {
           // 点击节点的处理逻辑
           this.handleNodeClick(node.id);
         });
-        d3.select(`#${node.id}`).on('contextmenu', (event, d) => {
-          console.log("右键")
-              event.preventDefault();
-              // this.showDeleteButton(node.id, event.pageX, event.pageY);
-              this.deleteNodeAndSuccessors(node.id)
-            });
+        // 悬浮事件
+        d3.select(`#${node.id}`).on('mouseover', () => {
+          // 更新所有连线的颜色为蓝色
+          svg.selectAll('.mylink')
+              .style('stroke', function () {
+                const linkId = d3.select(this).attr('id');
+                return linkId.includes(node.id) ? '#69b3b2' : 'grey';
+              })
+        });
+        d3.select(`#${node.id}`).on('mouseout', () => {
+          // 移出事件的处理逻辑
+          svg.selectAll('.mylink')
+              .style('stroke', 'grey')
+              .style('stroke-width', 2);
+        });
       });
     },
 
@@ -201,12 +372,15 @@ export default {
           }
         });
       }
+      if (!this.pathData[store.state.curExpression]){
+        this.pathData[store.state.curExpression] = nodes
+      }
     },
 
     showOperator(nodeId, operation) {
-      if (operation) {
+      if (operation && this.graph.node(nodeId)) {
         const newNodeId = `node${this.nextNodeId}`;
-        this.addNode(operation, 'circle');
+        this.addNode(" ");
         this.addEdge(nodeId, operation, newNodeId);
       }
     },
@@ -216,7 +390,7 @@ export default {
         const oldNode = this.graph.node(n.id);
         this.graph.setNode(n.id, {...oldNode, style: "fill:#6CA6CD;cursor:pointer"}); // 重置为原始样式
       })
-      this.graph.setNode(node.id, {...node, style: "fill:#F56C6C;cursor:pointer"});
+      this.graph.setNode(node.id, {...node, style: "fill:#F56C6C;cursor:pointer;"});
     },
 
     // 在数据节点中加入参数文字
@@ -226,21 +400,49 @@ export default {
       const existingSquares = nodeElem.selectAll('rect');
       const rectWidth = 40;
       const rectHeight = 20;
-      const spacing = -6; // 矩形块之间的间距
-      const translateY = 15; // 平移的距离
-      // 更新现有矩形的位置
-      existingSquares.each(function() {
-        d3.select(this)
-            .attr('y', d => parseFloat(d3.select(this).attr('y')) - translateY);
-      });
-      // 同步更新对应的文本位置
-      const existingTexts = nodeElem.selectAll('text');
-      existingTexts.each(function() {
-        d3.select(this)
-            .attr('y', d => parseFloat(d3.select(this).attr('y')) - translateY);
-      });
-      const xPosition = -(rectWidth / 2);
-      const yPosition = -10 + (rectHeight + spacing) * existingSquares.size(); // 垂直位置
+      const spacing = 3; // 矩形块之间的间距
+      const translateY = 8; // 平移的距离
+      let xPosition, yPosition
+      if(existingSquares.size()<=2){
+        // 更新现有矩形的位置
+        existingSquares.each(function() {
+          d3.select(this)
+              .attr('y', d => parseFloat(d3.select(this).attr('y')) - translateY);
+        });
+        // 同步更新对应的文本位置
+        const existingTexts = nodeElem.selectAll('text');
+        existingTexts.each(function() {
+          d3.select(this)
+              .attr('y', d => parseFloat(d3.select(this).attr('y')) - translateY);
+        });
+        xPosition = -(rectWidth / 2);
+        yPosition = -25 + (rectHeight/2 + spacing)* existingSquares.size(); // 垂直位置
+      }
+      else{
+        // 更新现有矩形的位置
+        if(existingSquares.size()===3){
+          existingSquares.each(function(_, i) {
+            const newX = parseFloat(d3.select(this).attr('x'));
+            // 根据索引判断是否需要进行平移
+            const adjustedX = i <= 2 ? newX - translateY*2.6 : newX;
+            d3.select(this).attr('x', adjustedX);
+          });
+          // 同步更新对应的文本位置
+          const existingTexts = nodeElem.selectAll('text');
+          existingTexts.each(function(_, i) {
+            const newX = parseFloat(d3.select(this).attr('x'));
+            // 根据索引判断是否需要进行平移
+            const adjustedX = i <= 2 ? newX - translateY*2.6 : newX;
+            d3.select(this).attr('x', adjustedX);
+          });
+        }
+        xPosition = 2;
+        yPosition = -20 + (rectHeight/2 + spacing) * (existingSquares.size()-3); // 垂直位置
+        if(existingSquares.size()===4){
+          xPosition = 2;
+          yPosition = -10 + (rectHeight/2 + spacing) * (existingSquares.size()-3); // 垂直位置
+        }
+      }
       const newSquare = nodeElem.append('g'); // 使用 'g' 元素来组合正方形和文本
       newSquare.append('rect')
           .attr('x', xPosition)
@@ -272,7 +474,8 @@ export default {
       this.updateGraph();
     },
     // 删除节点
-    deleteNodeAndSuccessors(nodeId) {
+    deleteNode(nodeId) {
+      const svg = d3.select(".svgArea")
       // 实现删除节点以及其后续节点和连线的逻辑
       let nodesToDelete = new Set();
       let edgesToDelete = new Set();
@@ -290,7 +493,24 @@ export default {
       // 删除节点和边
       this.nodes = this.nodes.filter(node => !nodesToDelete.has(node.id));
       this.edges = this.edges.filter(edge => !edgesToDelete.has(edge));
-
+      // 同时从 dagre-d3 的 graph 实例中删除节点和边
+      nodesToDelete.forEach(nodeId => this.graph.removeNode(nodeId));
+      edgesToDelete.forEach(edge => this.graph.removeEdge(edge.source, edge.target));
+      // 把自己画的连线也删除
+      nodesToDelete.forEach(nodeId => {
+        svg.selectAll('.mylink')
+            .filter(link => {
+              // 根据特定节点的 ID 进行筛选
+              return link.source === nodeId || link.target === nodeId;
+            })
+            .remove()
+        svg.selectAll('.linkText')
+            .filter(link => {
+              // 根据特定节点的 ID 进行筛选
+              return link.source === nodeId || link.target === nodeId;
+            })
+            .remove()
+      })
       this.updateGraph();
     },
     // 获取节点上的参数信息
@@ -343,7 +563,12 @@ export default {
 
     getNodeLabel(nodeId) {
       const node = this.graph.node(nodeId);
-      return node.label
+      if(node){
+        return node.label
+      }
+      else{
+        return ""
+      }
     },
 
     createCompletePaths(nodes, edges) {

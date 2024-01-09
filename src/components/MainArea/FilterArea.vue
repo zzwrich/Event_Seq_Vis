@@ -69,7 +69,6 @@
       </el-tab-pane>
     </el-tabs>
   </div>
-
   <div class="dataBlock">
   </div>
   <DataBlock :tableData="responseFileData" />
@@ -109,7 +108,8 @@ export default {
       searchText: '',
       // 导航栏
       activeTab: 'history',
-      unusualSequences: []
+      unusualSequences: [],
+      isAddHistory :false
     };
   },
   computed: {
@@ -137,7 +137,7 @@ export default {
     curExpression(newVal) {
       this.codeInput = newVal
       this.executeCode()
-    },
+    }
   },
   methods: {
     removeSequence(index) {
@@ -219,14 +219,13 @@ export default {
             this.$store.dispatch('saveResponseData', response.data);
             this.responseData = response.data;
             this.operation = this.responseData["operation"]
-            // 更新历史记录 在添加新记录之前检查是否已存在
-            if (!this.history.includes(this.codeInput)) {
-              this.history.push(this.codeInput);
-            }
           })
           .catch(error => {
             console.error(error);
           });
+      if (!this.history.includes(this.codeInput)) {
+        this.history.push(this.codeInput)
+      }
     },
     selectHistory(item) {
       this.codeInput = item; // 设置 codeInput 为选中的历史记录

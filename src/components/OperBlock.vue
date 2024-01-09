@@ -11,7 +11,7 @@ export default {
     return {
       rectWidth: "5%",
       rectHeight: "5%",
-      rectSpacing: 50,
+      rectSpacing: 120,
     };
   },
   mounted() {
@@ -55,7 +55,7 @@ export default {
       const blockTop = blockRect.top;
       const blockBottom = blockRect.bottom;
       const block5Width = block5Rect.width;
-
+      const block5Height = block5Rect.height;
       //矩形块的初始坐标
       const rectCoordinates = []; // 存储矩形块的坐标
 
@@ -67,8 +67,10 @@ export default {
       for (let i = 0; i < 8; i++) {
         const rectWidth= parseFloat(this.rectWidth.replace('%', ''))/100;
         const rectHeight= parseFloat(this.rectHeight.replace('%', ''))/100;
-        const rectX = offsetX+((block5Width-rectWidth*rootWidth) /2); // 矩形块的x坐标
-        const rectY = offsetY+((i + 1) * (rectHeight*rootHeight + this.rectSpacing)) // 矩形块的y坐标
+        // const rectX = offsetX+((block5Width-rectWidth*rootWidth) /2); // 矩形块的x坐标
+        // const rectY = offsetY+((i + 1) * (rectHeight*rootHeight + this.rectSpacing)) // 矩形块的y坐标
+        const rectY = offsetY+((block5Height-rectHeight*rootHeight) /2); // 矩形块的x坐标
+        const rectX = offsetX+(i * rectWidth*rootWidth + (i + 1) * this.rectSpacing) // 矩形块的y坐标
         const textX=rectX+rectWidth*rootWidth/2
         const textY=rectY+rectHeight*rootHeight/2
 

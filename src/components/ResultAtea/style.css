@@ -213,26 +213,31 @@
 }
 /*悬浮框样式*/
 .tooltip {
-	border: 1px solid #ebeef5;
-	border-radius: 4px;
-	background-color: white;
-	box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
-	padding: 10px 15px;
-	color: #606266;
-	font-size: 14px;
+	position: absolute;
+	padding: 12px;
+	background-color: #f8f9fa;
+	border:1px solid #ced4da;
+	border-radius:8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	color: #495057;
 	line-height: 1.4;
-	transition: opacity .3s;
+	font-size: 14px;
+	opacity: 0;
+	pointer-events: none;
 }
 
-.tooltip::after {
-	content: "";
-	border-width: 6px;
-	border-style: solid;
-	border-color: transparent transparent white transparent;
+.sankeyTooltip {
 	position: absolute;
-	top: -12px;
-	left: 50%;
-	margin-left: -6px;
+	padding: 6px;
+	background-color: #f8f9fa;
+	border:1px solid #ced4da;
+	border-radius:8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	color: #495057;
+	line-height: 0.5;
+	font-size: 12px;
+	opacity: 0;
+	pointer-events: none;
 }
 
 .echart-container{

@@ -66,7 +66,7 @@ export default {
 <style>
 .data-table-container {
   position: absolute;
-  bottom: 0; /* 底部与父容器底部对齐 */
+  top: 0; /* 底部与父容器底部对齐 */
   max-height: 100%;
   overflow-y: auto; /* 如果内容超出最大高度，显示滚动条 */
   left:0;

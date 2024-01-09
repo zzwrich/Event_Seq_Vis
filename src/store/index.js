@@ -9,11 +9,12 @@ const store = createStore({
             unusualSeq: [],
             selectedSeq: [],
             selectedData: "",
-            selectedParameter: [],
+            selectedParameter: "",
             selectedOperator: "",
             curExpression:"",
             isDrag:false,
-            isSelectData:false
+            isSelectData:false,
+            isClickContainer: ""
         };
     },
     mutations: {
@@ -36,10 +37,10 @@ const store = createStore({
             state.selectedData = option;
         },
         setSelectedParameter(state, option) {
-            state.selectedParameter.push(option);
+            state.selectedParameter = option;
         },
         clearSelectedParameter(state) {
-            state.selectedParameter = []; // 将 selectedParameter 清空
+            state.selectedParameter = ""; // 将 selectedParameter 清空
         },
         setSelectedOperator(state, option) {
             state.selectedOperator = option;
@@ -55,6 +56,9 @@ const store = createStore({
         },
         setIsSelectData(state) {
             state.isSelectData = !state.isSelectData;
+        },
+        setIsClickContainer(state, option) {
+            state.isClickContainer = option;
         },
     },
     actions: {
@@ -96,6 +100,9 @@ const store = createStore({
         },
         saveIsSelectData({ commit }, option) {
             commit('setIsSelectData', option);
+        },
+        saveIsClickContainer({ commit }, option) {
+            commit('setIsClickContainer', option);
         },
     }
 });

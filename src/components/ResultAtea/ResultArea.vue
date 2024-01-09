@@ -1,7 +1,7 @@
 <template>
   <div v-for="(box,index) in boxes" :key="box.id" :class="boxClass(box)" :style="boxStyle(box)" @click="selectBox(box)">
     <!--图表容器-->
-    <div :id="`chart-container-${box.id}`" class="chart-container" @click="hasChartElements(box) && $event.stopPropagation()" style="position: relative;height: 98%; width: 100%; overflow: auto; top: 25px;"></div>
+    <div :id="`chart-container-${box.id}`" class="chart-container" @click="selectChart(box) && $event.stopPropagation()" style="position: relative;height: 98%; width: 100%; overflow: auto; top: 25px;"></div>
     <!--按钮容器-->
     <div class="button-container">
       <el-button @click="handleIncrement(boxes, index, rootWidth, rootHeight)" size="small">+</el-button>
@@ -26,11 +26,18 @@ const boxes = ref([{ id: 0, parentId:-1, width: '100%', height: '100%', x: 0, y:
 let rootWidth = 1;
 let rootHeight = 1;
 let containerId = "chart-container-0";
+let selectId = "chart-container-0";
 
 // 判断 chart-container 是否包含元素
-function hasChartElements(box) {
-  const containerId = `chart-container-${box.id}`; // 确保ID与模板中的ID一致
-  const divElement = document.getElementById(containerId);
+function selectChart(box) {
+  selectId = `chart-container-${box.id}`;
+  store.dispatch('saveIsClickContainer',selectId);
+  const myDiv =  document.getElementById(selectId)
+  let codeContext =myDiv.getAttribute("codeContext");
+  if(codeContext!==null){
+    store.dispatch('saveCurExpression',codeContext);
+  }
+  const divElement = document.getElementById(selectId);
   return !!(divElement && divElement.firstChild);
 }
 function canDecrement(box) {
@@ -49,9 +56,9 @@ function selectBox(curBox) {
       box.isSelected = false;
     }
   });
-
   curBox.isSelected = !curBox.isSelected;
   containerId = "chart-container-" + curBox.id;
+  selectId = containerId
 }
 
 // 观察 boxes 数组的变化
@@ -67,7 +74,13 @@ watch(() => store.state.responseData, (newValue, oldValue) => {
   const data = newValue.result
   const visualType=store.state.visualType
   const seqView=store.state.seqView
-  dataVisual.chooseWhich(operation, containerId, data, visualType, seqView)
+  if(containerId === selectId){
+    dataVisual.chooseWhich(operation, containerId, data, visualType, seqView)
+    //给点击的容器绑定执行的代码
+    const myDiv = document.getElementById(containerId);
+    // 将字符串信息绑定到div的自定义属性上
+    myDiv.setAttribute("codeContext", store.state.curExpression);
+  }
 });
 
 // 当组件挂载时执行
