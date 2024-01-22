@@ -5,6 +5,7 @@ const store = createStore({
         return {
             responseData: null,
             visualType :null,
+            isSelectVisualType:false,
             seqView :null,
             unusualSeq: [],
             selectedSeq: [],
@@ -14,7 +15,15 @@ const store = createStore({
             curExpression:"",
             isDrag:false,
             isSelectData:false,
-            isClickContainer: ""
+            isSelectNode:false,
+            selectContainer: "",
+            isSelectContainer: "",
+            isSelectParameter:false,
+            globalHighlight: [],
+            curHighlightContainer: "",
+            originalTableData:{},
+            filterRules:{},
+            dateRange: []
         };
     },
     mutations: {
@@ -23,6 +32,9 @@ const store = createStore({
         },
         setVisualType(state, option) {
             state.visualType = option;
+        },
+        setIsSelectVisualType(state) {
+            state.isSelectVisualType = !state.isSelectVisualType;
         },
         setSeqView(state, option) {
             state.seqView = option;
@@ -57,8 +69,37 @@ const store = createStore({
         setIsSelectData(state) {
             state.isSelectData = !state.isSelectData;
         },
-        setIsClickContainer(state, option) {
-            state.isClickContainer = option;
+        setIsSelectNode(state) {
+            state.isSelectNode = !state.isSelectNode;
+        },
+        setSelectContainer(state, option) {
+            state.selectContainer = option;
+        },
+        setIsSelectContainer(state) {
+            state.isSelectContainer = !state.isSelectContainer;
+        },
+        setIsSelectParameter(state) {
+            state.isSelectParameter = !state.isSelectParameter;
+        },
+        setGlobalHighlight(state,option) {
+            state.globalHighlight.push(option);
+        },
+        clearGlobalHighlight(state) {
+            state.globalHighlight = []
+        },
+        setCurHighlightContainer(state, option) {
+            state.curHighlightContainer = option;
+        },
+        setOriginalTableData(state, { key, value }) {
+            if (!(key in state.originalTableData)) {
+                state.originalTableData[key] = value;
+            }
+        },
+        setFilterRules(state, option) {
+            state.filterRules = option;
+        },
+        setDateRange(state, option) {
+            state.dateRange = option;
         },
     },
     actions: {
@@ -67,6 +108,9 @@ const store = createStore({
         },
         saveVisualType({ commit }, option) {
             commit('setVisualType', option);
+        },
+        saveIsSelectVisualType({ commit }) {
+            commit('setIsSelectVisualType');
         },
         saveSeqView({ commit }, option) {
             commit('setSeqView', option);
@@ -98,11 +142,38 @@ const store = createStore({
         saveIsDrag({ commit }, option) {
             commit('setIsDrag', option);
         },
-        saveIsSelectData({ commit }, option) {
-            commit('setIsSelectData', option);
+        saveIsSelectData({ commit }) {
+            commit('setIsSelectData');
         },
-        saveIsClickContainer({ commit }, option) {
-            commit('setIsClickContainer', option);
+        saveIsSelectNode({ commit }) {
+            commit('setIsSelectNode');
+        },
+        saveSelectContainer({ commit }, option) {
+            commit('setSelectContainer', option);
+        },
+        saveIsSelectContainer({ commit }) {
+            commit('setIsSelectContainer');
+        },
+        saveIsSelectParameter({ commit }) {
+            commit('setIsSelectParameter');
+        },
+        saveGlobalHighlight({ commit }, option) {
+            commit('setGlobalHighlight', option);
+        },
+        clearGlobalHighlight({ commit }) {
+            commit('clearGlobalHighlight');
+        },
+        saveCurHighlightContainer({ commit }, option) {
+            commit('setCurHighlightContainer',option);
+        },
+        saveOriginalTableData({ commit }, { key, value }) {
+            commit('setOriginalTableData',{ key, value });
+        },
+        saveFilterRules({ commit }, option) {
+            commit('setFilterRules', option);
+        },
+        saveDateRange({ commit }, option) {
+            commit('setDateRange', option);
         },
     }
 });

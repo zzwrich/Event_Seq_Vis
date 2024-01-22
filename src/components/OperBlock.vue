@@ -10,8 +10,6 @@ export default {
   data() {
     return {
       rectWidth: "5%",
-      rectHeight: "5%",
-      rectSpacing: 120,
     };
   },
   mounted() {
@@ -46,6 +44,9 @@ export default {
       const block5Rect = block5Element.getBoundingClientRect();
       const offsetX = block5Rect.left;
       const offsetY = block5Rect.top;
+      const containerWidth=block5Rect.width
+      const containerHeight=block5Rect.height
+      const rectNum=10
 
       //判断是否被拖动至于指定位置
       const blockElement = document.getElementsByClassName("workflowArea")[0]
@@ -56,6 +57,14 @@ export default {
       const blockBottom = blockRect.bottom;
       const block5Width = block5Rect.width;
       const block5Height = block5Rect.height;
+
+      const rectWidth= 0.05;
+      const rectWidthFloat= 0.05*rootWidth
+      const rectSpacing =rectWidthFloat/2
+      const totalWidth = rectNum*rectWidthFloat+(rectNum-1)*rectSpacing
+      const marginLeft = (containerWidth-totalWidth)/2
+      const rectHeight= containerHeight/rootHeight/2*100+"%"
+      const rectHeightFloat= parseFloat(rectHeight.replace('%', ''))/100*rootHeight
       //矩形块的初始坐标
       const rectCoordinates = []; // 存储矩形块的坐标
 
@@ -64,23 +73,20 @@ export default {
         return Math.min(rectWidth, rectHeight) / 10 + "px";
       }
 
-      for (let i = 0; i < 8; i++) {
-        const rectWidth= parseFloat(this.rectWidth.replace('%', ''))/100;
-        const rectHeight= parseFloat(this.rectHeight.replace('%', ''))/100;
+      for (let i = 0; i < rectNum; i++) {
         // const rectX = offsetX+((block5Width-rectWidth*rootWidth) /2); // 矩形块的x坐标
         // const rectY = offsetY+((i + 1) * (rectHeight*rootHeight + this.rectSpacing)) // 矩形块的y坐标
-        const rectY = offsetY+((block5Height-rectHeight*rootHeight) /2); // 矩形块的x坐标
-        const rectX = offsetX+(i * rectWidth*rootWidth + (i + 1) * this.rectSpacing) // 矩形块的y坐标
+        const rectY = offsetY+((block5Height- rectHeightFloat) /2);
+        const rectX = offsetX+(i * rectWidth*rootWidth + i * rectSpacing + marginLeft)
         const textX=rectX+rectWidth*rootWidth/2
-        const textY=rectY+rectHeight*rootHeight/2
+        const textY=rectY+containerHeight/4
 
         //添加矩形块
         const rect = svg.append('rect')
-            .attr('width', this.rectWidth)
+            .attr('width', rectWidthFloat)
             .attr('class', 'draggable-rect')
-            .attr('height', this.rectHeight)
-            .attr('fill', '#f0f0f0')
-            .attr('stroke', '#ddd')
+            .attr('height', rectHeight)
+            .attr('fill', '#eeeeee')
             .attr('x', rectX)
             .attr('y', rectY)
             .attr('id', 'myRect'+i)
@@ -89,11 +95,11 @@ export default {
             .attr('ry', 10) // 圆角的 y 半径
             .on('mouseover', function() {
               d3.select(this)
-                  .attr('fill','#DCDCDC'); // 鼠标悬停时的填充颜色
+                  .attr('fill','#ddd'); // 鼠标悬停时的填充颜色
             })
             .on('mouseout', function() {
               d3.select(this)
-                  .attr('fill', '#f0f0f0'); // 鼠标离开时恢复原始填充颜色
+                  .attr('fill', '#eeeeee'); // 鼠标离开时恢复原始填充颜色
             });
 
         // 创建 filter
@@ -106,24 +112,23 @@ export default {
             .attr('dx', 5)
             .attr('dy', 5)
             .attr('stdDeviation', 2)
-            .attr('flood-color', 'rgba(0, 0, 0, 0.5)');
+            .attr('flood-color', '#D3D3D3');
         // 应用阴影 filter 到矩形
         rect.style('filter', 'url(#drop-shadow)');
 
         // 运算块文字
-        let textContent = ["filter","group_by","count","unique_count","seq_view",'unique_attr',"intersection_set","difference_set"]
+        let textContent = ["filter","group_by","count","unique_count","seq_view",'agg_view','view_type','unique_attr',"intersection_set","difference_set"]
 
         const text = svg.append('text')
             .text(textContent[i]) // 使用数组中的文本
             .attr('x', textX)
             .attr('y', textY)
             .attr('id','myText'+i)
-            .attr('fill','grey')
+            .attr('fill','#696969')
             .style('font-size', calculateFontSize(rect.attr('width'), rect.attr('height')))
-            .style('font-weight','bold')
+            // .style('font-weight',550)
             .attr('dominant-baseline', 'middle') // 垂直居中
             .attr('text-anchor', 'middle'); // 水平居中
-
 
         rectCoordinates.push({ x: rectX, y: rectY }); // 将坐标添加到数组中
 
@@ -140,9 +145,9 @@ export default {
               const id=dragTarget.attr('id')
               const rect=d3.select('#myRect'+id.substring(id.length-1))
               const text=d3.select('#myText'+id.substring(id.length-1))
-
-              rect.attr('x', pt[0] - rectWidth*rootWidth/2)
-                  .attr('y', pt[1] - rectHeight*rootHeight/2)
+              
+              rect.attr('x', pt[0] - rectWidthFloat/2)
+                  .attr('y', pt[1] - rectHeightFloat/2)
               text.attr('x', pt[0])
                   .attr('y', pt[1])
             })

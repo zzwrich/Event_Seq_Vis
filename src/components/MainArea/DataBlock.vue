@@ -53,6 +53,7 @@ export default {
   },
   methods: {
     cellClicked(cellValue, columnName) {
+      this.$store.dispatch('saveIsSelectParameter');
       this.$store.dispatch('saveSelectedParameter',cellValue);
     },
     headerClicked(column, event) {
@@ -65,6 +66,7 @@ export default {
 
 <style>
 .data-table-container {
+  height: 28%;
   position: absolute;
   top: 0; /* 底部与父容器底部对齐 */
   max-height: 100%;

@@ -1,4 +1,36 @@
 import * as d3 from "d3";
+import store from '@/store'
+
+export function exportTableToCSV(containerId, filename) {
+    console.log("con",containerId)
+    const csv = [];
+    const rows = document.querySelectorAll("#" + containerId + " .el-table tr");
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = [], cols = rows[i].querySelectorAll("td, th");
+
+        for (let j = 0; j < cols.length; j++) {
+            const text = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, "").replace(/(\s\s+)/gm, " ");
+            row.push(`"${text}"`);
+        }
+
+        csv.push(row.join(","));
+    }
+    // 正常显示中文
+    const BOM = "\uFEFF";
+    const csvData = BOM + csv.join("\n");
+
+    const csvFile = new Blob([csvData], { type: "text/csv" });
+    const downloadLink = document.createElement("a");
+
+    downloadLink.download = filename;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = "none";
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
 
 export function formatDateTime(dateTimeString) {
     const date = new Date(dateTimeString);
@@ -10,8 +42,8 @@ export function hexToRgb(hex) {
 }
 // 解析操作类型 暂时默认取首字母!!!
 export function parseAction(action) {
-    // return action.split(' ')[0]
-    return  action
+    return action.split(' ')[0]
+    // return action
 }
 
 function containsSubsequence(sequence, subsequence) {
@@ -89,6 +121,21 @@ export function generateColorMap(data,seqView) {
     return colorMap;
 }
 
+export function generateUserColorMap(data) {
+    const uniqueActionTypes = new Set();
+    // 遍历数据，提取所有不同的操作类型
+    Object.keys(data).forEach(user => {
+        uniqueActionTypes.add(user);
+    });
+    // 为每种操作类型分配颜色
+    const colorMap = {};
+    const colorScale = d3.scaleOrdinal(d3.schemeSet3); // 使用内置的颜色方案
+    uniqueActionTypes.forEach((actionType, index) => {
+        colorMap[actionType] = colorScale(index);
+    });
+    return colorMap;
+}
+
 export function toggleVisibility(element, button) {
     if (element.style.display === 'none') {
         element.style.display = '';
@@ -102,10 +149,9 @@ export function toggleVisibility(element, button) {
 //柱状图
 export function getBarChartOption(data) {
     const outerKeys = Object.keys(data);
-
     return {
         title: {
-            text: '计数结果',
+            text: 'Count Result',
         },
         tooltip: {
             trigger: 'axis',
@@ -133,7 +179,16 @@ export function getBarChartOption(data) {
         series: outerKeys.map(key => ({
             name: key,
             type: 'bar',
-            data: Object.keys(data[key]).map(innerKey => data[key][innerKey])
+            data: Object.keys(data[key]).map(innerKey => data[key][innerKey]),
+            emphasis: {
+                itemStyle: {
+                    opacity: 0.8,
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)',
+                },
+            },
+            cursor: 'pointer',
         }))
     };
 }
@@ -150,9 +205,6 @@ export function getPieChartOption(data) {
     }
 
     return {
-        title: {
-            text: '计数结果',
-        },
         tooltip: {
             trigger: 'item',
             formatter: '{a} <br/>{b}: {c} ({d}%)'
@@ -160,9 +212,7 @@ export function getPieChartOption(data) {
         toolbox: {
             show: true,
             feature: {
-                mark: { show: true },
                 dataView: { show: true, readOnly: false },
-                restore: { show: true },
                 saveAsImage: { show: true }
             }
         },
@@ -173,7 +223,7 @@ export function getPieChartOption(data) {
         },
         series: [
             {
-                name: '事件个数',
+                name: 'Count Result',
                 type: 'pie',
                 radius: '55%',
                 data: seriesData,
@@ -367,7 +417,137 @@ export function createSunburstData(data, seqView) {
     }
 }
 
+export function getKeysByValue(dictionary, sourceValue, targetValue) {
+    const result = [];
+    for (const [key, values] of Object.entries(dictionary)) {
+        if (values.includes(sourceValue)&&values.includes(targetValue)) {
+            result.push(key);
+        }
+    }
+    return result;
+}
 
-function processData(inputData,seqView) {
+export function findKeyByValue(data, searchValue) {
+    for (const key in data) {
+        if (data[key].includes(searchValue)) {
+            return key;
+        }
+    }
+    return null;
+}
 
+export function changeGlobalHighlight(d, containerId){
+    store.commit('setCurHighlightContainer',containerId);
+
+    const index = store.state.globalHighlight.indexOf(d);
+    if (index !== -1) {
+        store.state.globalHighlight.splice(index, 1);
+    }
+    else {
+        store.commit('setGlobalHighlight', d);
+    }
+
+    let filterRules={}
+    const myDiv =  document.getElementById(containerId)
+    let codeContext =myDiv.getAttribute("codeContext");
+    const [dataKey] = codeContext.split(".");
+    const originalData = store.state.originalTableData[dataKey]
+
+    const parentDiv = document.getElementsByClassName('grid-item block4')[0];
+    const childDivs = parentDiv.querySelectorAll('div');
+    const allChildDivs = {};
+    // 遍历 children 数组
+    for (let i = 0; i < childDivs.length; i++) {
+        // 获取当前子元素的所有子 div 元素
+        const currentChildDivs = childDivs[i].querySelectorAll('div');
+        // 在当前子元素的子 div 中查找类名为 'chart-container' 的元素
+        for (let j = 0; j < currentChildDivs.length; j++) {
+            const currentDiv = currentChildDivs[j];
+            if (currentDiv.classList.contains('chart-container')) {
+                // 将 'chart-container' 元素的 id 添加到数组中
+                const curDivId = currentDiv.id
+                allChildDivs[curDivId] = document.getElementById(curDivId).getAttribute("codeContext");
+            }
+        }
+    }
+    if(store.state.globalHighlight.length===0){
+        Object.entries(allChildDivs).forEach(([key, value]) => {
+            const myDiv = document.getElementById(key);
+            // 将字符串信息绑定到div的自定义属性上
+            myDiv.setAttribute("filteredCodeContext", "");
+        });
+        filterRules={}
+        store.commit('setFilterRules', filterRules);
+    }
+    else{
+        for(let i=0;i<store.state.globalHighlight.length;i++){
+            const curd = store.state.globalHighlight[i]
+            // 当前点击的数据项在数据中的键 为了后面加上filter语句
+            const foundKey = findKeyByValue(originalData, curd);
+            if(foundKey!==null){
+                if (!(foundKey in filterRules)) {
+                    filterRules[foundKey] = []
+                    filterRules[foundKey].push(curd)
+                }
+                else{
+                    filterRules[foundKey].push(curd)
+                }
+            }
+            const filtersArray = [];
+
+            for (const key in filterRules) {
+                if (filterRules.hasOwnProperty(key)) {
+                    const values = filterRules[key];
+                    const filterString = `filter('${key}', 'in', ${JSON.stringify(values)})`;
+                    filtersArray.push(filterString);
+                }
+            }
+            store.commit('setFilterRules', filterRules);
+
+            Object.entries(allChildDivs).forEach(([key, value]) => {
+                const hasDot = value.includes('.');
+                // 根据是否包含 '.' 进行不同的处理
+                let modifiedString;
+                if(filtersArray.length!==0){
+                    if (hasDot) {
+                        const parts = value.split('.');
+                        modifiedString = `${parts[0]}.${filtersArray.join('.')}.${parts.slice(1).join('.')}`;
+                    } else {
+                        modifiedString = `${value}.${filtersArray.join('.')}`;
+                    }
+                }
+                else{
+                    modifiedString = ""
+                }
+                const myDiv = document.getElementById(key);
+                // 将字符串信息绑定到div的自定义属性上
+                myDiv.setAttribute("filteredCodeContext", modifiedString);
+            });
+        }
+    }
+}
+
+// 填充数据的函数
+export function fillData(originalData, newData) {
+    const result = {};
+    // 遍历原始数据的键
+    for (const outerKey in originalData) {
+        if (originalData.hasOwnProperty(outerKey)) {
+            result[outerKey] = {}; // 创建一个新对象来存放填充后的数据
+
+            // 遍历原始数据中的内部键
+            for (const innerKey in originalData[outerKey]) {
+                if (originalData[outerKey].hasOwnProperty(innerKey)) {
+                    if (newData[outerKey] && newData[outerKey][innerKey] !== undefined) {
+                        // 如果新数据中包含相同的键，将原始数据的值复制到结果中
+                        result[outerKey][innerKey] = newData[outerKey][innerKey];
+                    } else {
+                        // 如果新数据中没有相同的键，将值设置为0
+                        result[outerKey][innerKey] = 0;
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }

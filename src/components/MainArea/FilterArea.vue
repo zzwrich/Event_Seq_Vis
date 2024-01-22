@@ -33,37 +33,37 @@
       <el-date-picker
           v-model="dateTimeRange"
           type="datetimerange"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          range-separator="至"
+          start-placeholder="Start Time"
+          end-placeholder="End Time"
+          range-separator="-"
           value-format="YYYY-MM-DD HH:mm:ss"
       />
     </div>
   </div>
-  <div>
+  <div class="history">
     <el-tabs v-model="activeTab" @tab-click="handleTabClick" stretch="stretch">
       <!-- 历史查询面板 -->
-      <el-tab-pane label="历史记录" name="history">
+      <el-tab-pane label="Historical Record" name="history">
         <div class="historyPanel">
-          <el-input v-model="searchText" placeholder="搜索历史记录" prefix-icon="Search" class="searchBox" style="margin-left: 0"></el-input>
+          <el-input v-model="searchText" placeholder="Search history" prefix-icon="Search" class="searchBox" style="margin-left: 0"></el-input>
           <ul class="historyList">
             <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">
               {{ item }}
-              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn">删除</el-button>
+              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn">Delete</el-button>
             </li>
           </ul>
         </div>
       </el-tab-pane>
       <!-- 异常序列记录面板 -->
-      <el-tab-pane label="异常序列记录" name="anomalies">
+      <el-tab-pane label="Anomalous Record" name="anomalies">
         <el-collapse v-model="activeCollapse">
-          <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'序列 ' + (index + 1)"  @click="selectSequence(sequence)">
+          <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'Sequence ' + (index + 1)"  @click="selectSequence(sequence)">
             <ul>
               <li v-for="(statement, stmtIndex) in sequence" :key="stmtIndex" >
                 {{ statement }}
               </li>
             </ul>
-            <el-button type="danger" size="small" @click="removeSequence(index)">删除序列</el-button>
+            <el-button type="danger" size="small" @click="removeSequence(index)">Delete</el-button>
           </el-collapse-item>
         </el-collapse>
       </el-tab-pane>
@@ -98,8 +98,8 @@ export default {
         { value: 'barChart', label: '柱状图' },
         { value: 'pieChart', label: '扇形图' },
         { value: 'timeLine', label: '时间轴' },
-        { value: 'hierarchy', label: '层次结构' },
-        { value: 'sunburst', label: '旭日图' },
+        // { value: 'hierarchy', label: '层次结构' },
+        // { value: 'sunburst', label: '旭日图' },
       ],
       operation: '',
       // 这里存储选择的日期范围
@@ -115,7 +115,8 @@ export default {
   computed: {
     ...mapState({
       unusualSeq: state => state.unusualSeq,
-      curExpression: state => state.curExpression
+      curExpression: state => state.curExpression,
+      isSelectNode: state=>state.isSelectNode
     }),
     filteredHistory() {
       if (!this.searchText) {
@@ -134,8 +135,17 @@ export default {
       deep: true
     },
     // 监听当前表达式的变化
-    curExpression(newVal) {
-      this.codeInput = newVal
+    isSelectNode() {
+      this.codeInput = this.curExpression
+      this.executeCode()
+    },
+    dateTimeRange(newValue, oldValue) {
+      if(newValue){
+        this.$store.dispatch('saveDateRange', this.dateTimeRange);
+      }
+      else{
+        this.$store.dispatch('saveDateRange', []);
+      }
       this.executeCode()
     }
   },
@@ -158,6 +168,7 @@ export default {
 
     handleSelectChange(value) {
       this.$store.dispatch('saveVisualType', value);
+      this.$store.dispatch('saveIsSelectVisualType');
     },
 
     isOptionDisabled(optionValue) {
@@ -173,6 +184,12 @@ export default {
       }
       if (lastOperation==="seq_view") {
         return (optionValue !== 'timeLine' && optionValue !== 'hierarchy' && optionValue !== 'sunburst')
+      }
+      if (lastOperation==="agg_view") {
+        return (optionValue !== 'timeLine' && optionValue !== 'hierarchy' && optionValue !== 'sunburst')
+      }
+      if (["count","unique_count","view_type"].includes(lastOperation)) {
+        return (optionValue !== 'barChart' && optionValue !== 'pieChart')
       }
     },
 
@@ -195,11 +212,20 @@ export default {
     },
     // 找按照什么来进行事件序列的可视化
     extractSeqViewContent(str) {
-      const regex = /seq_view\("([^"]+)"\)/;
+      const regex = /(seq|agg)_view\("([^"]+)"\)/;
       const match = str.match(regex);
-      if (match) {return match[1];}
-      else {return null;}
+      return match ? match[2] : null;
       },
+
+    extractViewType(str) {
+      const pattern = /\.view_type\("(.+?)"\)/;
+      const match = str.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      } else {
+        return null; // 或者你可以根据需要返回一个默认值
+      }
+    },
 
     executeCode() {
       let startTime = ""
@@ -207,11 +233,16 @@ export default {
       if (this.dateTimeRange&&(this.dateTimeRange.length === 2)) {
           startTime  = this.dateTimeRange[0];
           endTime = this.dateTimeRange[1];
-        }
+      }
       if(this.extractSeqViewContent(this.codeInput)){
         const seqEvent = this.extractSeqViewContent(this.codeInput)
         this.$store.dispatch('saveSeqView', seqEvent);
       }
+
+      if(this.extractViewType(this.codeInput)){
+        const viewType = this.extractViewType(this.codeInput)
+      }
+
       // 前端可以直接把最后的操作传给后端 后面再改
       axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput, startTime:startTime, endTime:endTime })
           .then(response => {
@@ -219,9 +250,18 @@ export default {
             this.$store.dispatch('saveResponseData', response.data);
             this.responseData = response.data;
             this.operation = this.responseData["operation"]
+
+            if (this.operation === "original") {
+              this.$store.dispatch('saveOriginalTableData', { key: this.codeInput, value: this.responseData['result'] });
+            }
           })
           .catch(error => {
             console.error(error);
+            // 从history中移除this.codeInput
+            const codeIndex = this.history.indexOf(this.codeInput);
+            if (codeIndex !== -1) {
+              this.history.splice(codeIndex, 1);
+            }
           });
       if (!this.history.includes(this.codeInput)) {
         this.history.push(this.codeInput)
@@ -237,3 +277,22 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/deep/ .el-tabs__item {
+  color: grey;
+  font-size: 15.5px;
+  background: #eeeeee;
+  border: 2px solid white;
+}
+
+/deep/ .el-tabs__item.is-active {
+  color: grey;
+  background: #f1f9ff;
+}
+
+/deep/ .el-tabs__active-bar {
+  background-color: transparent;
+}
+
+</style>

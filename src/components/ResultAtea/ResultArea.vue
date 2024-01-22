@@ -1,43 +1,46 @@
 <template>
   <div v-for="(box,index) in boxes" :key="box.id" :class="boxClass(box)" :style="boxStyle(box)" @click="selectBox(box)">
     <!--图表容器-->
-    <div :id="`chart-container-${box.id}`" class="chart-container" @click="selectChart(box) && $event.stopPropagation()" style="position: relative;height: 98%; width: 100%; overflow: auto; top: 25px;"></div>
+    <div :id="`chart-container-${box.id}`" class="chart-container" @click="selectChart(box) && $event.stopPropagation()" style="position: relative;height: 97.5%; width: 100%; overflow: auto; top: 2.5%;"></div>
     <!--按钮容器-->
     <div class="button-container">
-      <el-button @click="handleIncrement(boxes, index, rootWidth, rootHeight)" size="small">+</el-button>
-      <el-button @click="handleDecrement(boxes, index)" :disabled="!canDecrement(box)" size="small">-</el-button>
+      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'vertical',containerId,selectId)" size="small">+↑</el-button>
+      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'horizontal',containerId,selectId)" size="small">+→</el-button>
+      <el-button @click.stop="handleDecrement(boxes, index, containerId, selectId)" :disabled="!canDecrement(box)" size="small" style="margin-right: 10px">-</el-button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick} from 'vue';
 import { useStore } from 'vuex'; // 引入 useStore 钩子
 import { boxClass, boxStyle, handleIncrement, handleDecrement } from "./boxFunction.js";
 import dataVisual from "./dataVisual.js"
 import "./style.css"
+import axios from "axios";
 
 // 使用 useStore 钩子获取 store 实例
 const store = useStore();
 // 定义响应式数据
-const boxes = ref([{ id: 0, parentId:-1, width: '100%', height: '100%', x: 0, y: 0, children: [], parent:[], isSelected:false }]);
+const boxes = ref([{ id: 0, trueId:0, parentId:-1, width: '100%', height: '100%', x: 0, y: 0, children: [], parent:[], isSelected:false }]);
 
 // 定义全局变量
 let rootWidth = 1;
 let rootHeight = 1;
-let containerId = "chart-container-0";
-let selectId = "chart-container-0";
+let containerId = {string: 'chart-container-0'}
+let selectId = {string: 'chart-container-0'}
 
 // 判断 chart-container 是否包含元素
 function selectChart(box) {
-  selectId = `chart-container-${box.id}`;
-  store.dispatch('saveIsClickContainer',selectId);
-  const myDiv =  document.getElementById(selectId)
+  selectId.string = `chart-container-${box.id}`;
+  store.dispatch('saveIsSelectContainer');
+  store.dispatch('saveSelectContainer',selectId.string);
+  const myDiv =  document.getElementById(selectId.string)
   let codeContext =myDiv.getAttribute("codeContext");
   if(codeContext!==null){
     store.dispatch('saveCurExpression',codeContext);
   }
-  const divElement = document.getElementById(selectId);
+  const divElement = document.getElementById(selectId.string);
   return !!(divElement && divElement.firstChild);
 }
 function canDecrement(box) {
@@ -57,15 +60,12 @@ function selectBox(curBox) {
     }
   });
   curBox.isSelected = !curBox.isSelected;
-  containerId = "chart-container-" + curBox.id;
-  selectId = containerId
+  containerId.string = "chart-container-" + curBox.id;
+  selectId.string = containerId.string
 }
 
 // 观察 boxes 数组的变化
 watch(boxes, (newBoxes, oldBoxes) => {
-  newBoxes.forEach(box => {
-    // console.log(`Box: ${box.id}, Class: box-${box.id}`);
-  });
 }, { deep: true });
 
 // 观察 Vuex 中 responseData 的变化
@@ -74,12 +74,21 @@ watch(() => store.state.responseData, (newValue, oldValue) => {
   const data = newValue.result
   const visualType=store.state.visualType
   const seqView=store.state.seqView
-  if(containerId === selectId){
-    dataVisual.chooseWhich(operation, containerId, data, visualType, seqView)
+  if(containerId.string === selectId.string){
+    dataVisual.chooseWhich(operation, containerId.string, data, visualType, seqView)
     //给点击的容器绑定执行的代码
-    const myDiv = document.getElementById(containerId);
+    const myDiv = document.getElementById(containerId.string);
     // 将字符串信息绑定到div的自定义属性上
     myDiv.setAttribute("codeContext", store.state.curExpression);
+    // 绑定时间属性
+    if((store.state.dateRange.length !== 0)){
+      myDiv.setAttribute("startTime", store.state.dateRange[0]);
+      myDiv.setAttribute("endTime", store.state.dateRange[1]);
+    }
+    else{
+      myDiv.setAttribute("startTime", "");
+      myDiv.setAttribute("endTime", "");
+    }
   }
 });
 

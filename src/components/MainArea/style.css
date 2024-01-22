@@ -4,7 +4,9 @@
 	left:0;
 	height: 31%;
 	width:100%;
-	background-color: #f0f0f0;
+	/*border: 2px solid #D3D3D3;*/
+	border-radius: 5px;
+	background: white;
 }
 .upload-demo {
 	position: relative;
@@ -14,11 +16,12 @@
 	position: absolute;
 	top: 75%;
 	width: 85%;
-	background-color: white;
-	border-radius: 8px;
+	/*border: 2px solid #D3D3D3;*/
+	border-radius: 5px;
 	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 	padding: 20px;
 	margin-bottom: 20px;
+	background: white;
 }
 
 .dataBlock {
@@ -27,14 +30,16 @@
 	left: 0;
 	width: 100%;
 	height: 28%;
-	background-color: #f0f0f0;
+	/*border: 2px solid #D3D3D3;*/
+	border-radius: 5px;
+	background: white;
 }
+
  /*历史记录面板样式 */
 .historyPanel {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	background-color: #f0f0f0;
 	overflow-y: auto;
 }
 
@@ -48,13 +53,12 @@
 	border-bottom: 1px solid #ddd;
 	cursor: pointer;
 	transition: background-color 0.3s;
-	color: rgba(0, 0, 0, 0.5);
+	color: #808080;
 }
 
 .historyItem:hover {
 	background-color: #e0e0e0;
 }
-
 
 .deleteBtn {
 	position: absolute;
@@ -63,10 +67,12 @@
 /*导航栏*/
 .el-tabs{
 	position:absolute;
-	top: 28.6%;
+	top: 29%;
 	left: 0;
-	height: 38.2%;
+	height: 39%;
 	width: 100%;
-	background-color: #f0f0f0;
-	overflow: scroll;
+	/*border: 2px solid #D3D3D3;*/
+	border-radius: 5px;
+	overflow: auto;
+	background: white;
 }
