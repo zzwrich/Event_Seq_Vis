@@ -2,7 +2,7 @@
   <div class="data-table-container">
     <el-table
         :data="tableRows"
-        style="width: 100%;cursor: pointer"
+        style="width: 100%;cursor: pointer;font-size: 1vh;height:100%"
         @header-click="headerClicked"
     >
       <el-table-column
@@ -21,12 +21,25 @@
 </template>
 
 <script>
+
 export default {
   props: {
     // 接受从父组件传入的tableData
     tableData: {
       type: Object,
       default: () => ({})
+    }
+  },
+  watch: {
+    // 监听tableData属性的变化
+    tableData: {
+      handler(newValue) {
+        if (Object.keys(newValue).length > 0) {
+          this.printFirstSheetInfo();
+        }
+      },
+      deep: true,
+      immediate: true,
     }
   },
   computed: {
@@ -59,6 +72,12 @@ export default {
     headerClicked(column, event) {
       this.$store.dispatch('saveIsSelectData');
       this.$store.dispatch('saveSelectedData', column.label || column.prop);
+    },
+    printFirstSheetInfo() {
+      const sheetName = Object.keys(this.tableData)[0]
+      this.$store.dispatch('saveSheetName', sheetName);
+      const column = this.tableData[sheetName]
+      this.$store.dispatch('saveSheetData', column);
     }
   }
 };
@@ -70,7 +89,7 @@ export default {
   position: absolute;
   top: 0; /* 底部与父容器底部对齐 */
   max-height: 100%;
-  overflow-y: auto; /* 如果内容超出最大高度，显示滚动条 */
+  overflow: auto; /* 如果内容超出最大高度，显示滚动条 */
   left:0;
   width:100%;
 }

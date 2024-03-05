@@ -6,9 +6,11 @@
         :on-success="handleSuccess"
         :file-list="fileList"
         :fileType="fileType"
+        :show-file-list="false"
         :before-upload="beforeUpload"
     >
-      <el-button slot="trigger" size="small" type="primary">选择文件</el-button>
+      <el-button slot="trigger" size="small">Dataset</el-button>
+      <el-button @click.stop="executeCode" size="small">Execute code</el-button>
     </el-upload>
   </div>
   <div class="codeExecutionArea">
@@ -18,7 +20,10 @@
         placeholder="请输入要执行的代码"
         :rows="5">
     </el-input>
-    <el-select v-model="selectedOption" @change="handleSelectChange" placeholder="请选择可视化构型">
+    <el-select v-model="selectedOption" @change="handleSelectChange"
+               size="small"
+               style="margin: 2%;width: 140px;"
+               placeholder="Select visualization">
       <el-option
           v-for="item in visualTypes"
           :key="item.value"
@@ -27,12 +32,13 @@
           :disabled="isOptionDisabled(item.value)">
       </el-option>
     </el-select>
-    <el-button @click="executeCode" type="primary">执行代码</el-button>
     <!-- 时间范围选择器 -->
     <div class="timePicker">
       <el-date-picker
           v-model="dateTimeRange"
           type="datetimerange"
+          size="small"
+          style="width: 92%"
           start-placeholder="Start Time"
           end-placeholder="End Time"
           range-separator="-"
@@ -41,21 +47,21 @@
     </div>
   </div>
   <div class="history">
-    <el-tabs v-model="activeTab" @tab-click="handleTabClick" stretch="stretch">
+    <el-tabs v-model="activeTab" @tab-click="handleTabClick" type="card" stretch="stretch">
       <!-- 历史查询面板 -->
-      <el-tab-pane label="Historical Record" name="history">
+      <el-tab-pane label="History" name="history">
         <div class="historyPanel">
-          <el-input v-model="searchText" placeholder="Search history" prefix-icon="Search" class="searchBox" style="margin-left: 0"></el-input>
+          <el-input v-model="searchText" placeholder="Search history" prefix-icon="Search" class="searchBox"></el-input>
           <ul class="historyList">
             <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">
               {{ item }}
-              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn">Delete</el-button>
+              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn" style="font-size: 2%;">Delete</el-button>
             </li>
           </ul>
         </div>
       </el-tab-pane>
       <!-- 异常序列记录面板 -->
-      <el-tab-pane label="Anomalous Record" name="anomalies">
+      <el-tab-pane label="Anomaly" name="anomalies">
         <el-collapse v-model="activeCollapse">
           <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'Sequence ' + (index + 1)"  @click="selectSequence(sequence)">
             <ul>
@@ -80,6 +86,7 @@ import DataBlock from './DataBlock.vue';
 import {Search} from "@element-plus/icons";
 import "./style.css"
 import { mapState } from 'vuex';
+import store from "@/store/index.js";
 export default {
   components:{
     Search,
@@ -94,11 +101,12 @@ export default {
       fileType: [ "xls", "xlsx","json"],
       selectedOption: '',
       visualTypes: [
-        { value: 'table', label: '表格' },
-        { value: 'barChart', label: '柱状图' },
-        { value: 'pieChart', label: '扇形图' },
-        { value: 'timeLine', label: '时间轴' },
-        // { value: 'hierarchy', label: '层次结构' },
+        // { value: 'table', label: 'Table' },
+        { value: 'barChart', label: 'barChart' },
+        { value: 'pieChart', label: 'pieChart' },
+        { value: 'timeLine', label: 'timeLine' },
+        { value: 'Sankey', label: 'Sankey' },
+        { value: 'Heatmap', label: 'Heatmap' },
         // { value: 'sunburst', label: '旭日图' },
       ],
       operation: '',
@@ -116,7 +124,9 @@ export default {
     ...mapState({
       unusualSeq: state => state.unusualSeq,
       curExpression: state => state.curExpression,
-      isSelectNode: state=>state.isSelectNode
+      isSelectNode: state=>state.isSelectNode,
+      selectedViewType: state => state.selectedViewType,
+      isSelectedViewType: state => state.isSelectedViewType
     }),
     filteredHistory() {
       if (!this.searchText) {
@@ -134,10 +144,24 @@ export default {
       },
       deep: true
     },
+    isSelectedViewType() {
+      this.selectedOption = this.selectedViewType
+      this.$store.dispatch('saveVisualType', this.selectedViewType);
+    },
     // 监听当前表达式的变化
     isSelectNode() {
       this.codeInput = this.curExpression
-      this.executeCode()
+      // 先判断是否已经有这个表达式对应的视图
+      const  allChildDivs=this.getDiv()
+      // 找出allChildDivs数组中值为this.codeInput对应的键
+      const matchingKeys = Object.keys(allChildDivs).find(key => allChildDivs[key] === this.codeInput);
+
+      if (matchingKeys) {
+        store.dispatch('saveSelectBox',matchingKeys);
+      } else {
+        // 没有找到匹配的键
+        this.executeCode()
+      }
     },
     dateTimeRange(newValue, oldValue) {
       if(newValue){
@@ -150,6 +174,26 @@ export default {
     }
   },
   methods: {
+    getDiv(){
+      const parentDiv = document.getElementsByClassName('grid-item block4')[0];
+      const childDivs = parentDiv.querySelectorAll('div');
+      const allChildDivs = {};
+      // 遍历 children 数组
+      for (let i = 0; i < childDivs.length; i++) {
+        // 获取当前子元素的所有子 div 元素
+        const currentChildDivs = childDivs[i].querySelectorAll('div');
+        // 在当前子元素的子 div 中查找类名为 'chart-container' 的元素
+        for (let j = 0; j < currentChildDivs.length; j++) {
+          const currentDiv = currentChildDivs[j];
+          if (currentDiv.classList.contains('chart-container')) {
+            // 将 'chart-container' 元素的 id 添加到数组中
+            const curDivId = currentDiv.id
+            allChildDivs[curDivId] = document.getElementById(curDivId).getAttribute("codeContext");
+          }
+        }
+      }
+      return allChildDivs
+    },
     removeSequence(index) {
       this.$confirm('确定要删除这个序列吗?', '警告', {
         confirmButtonText: '确定',
@@ -178,17 +222,14 @@ export default {
       while ((match = regex.exec(this.codeInput)) !== null) {
         operations.push(match[1]);
       }
-      const lastOperation = operations[operations.length - 1]
-      if ((operations.length===0 && this.codeInput!=="") || ["filter","difference_set", "intersection_set", "unique_attr"].includes(lastOperation)) {
-        return optionValue !== 'table'
+      let lastOperation = operations[operations.length - 1]
+      if(this.extractViewType(this.codeInput)){
+        lastOperation = operations[operations.length - 2]
       }
       if (lastOperation==="seq_view") {
-        return (optionValue !== 'timeLine' && optionValue !== 'hierarchy' && optionValue !== 'sunburst')
+        return (optionValue !== 'timeLine' && optionValue !== 'Sankey' && optionValue !== 'Heatmap')
       }
-      if (lastOperation==="agg_view") {
-        return (optionValue !== 'timeLine' && optionValue !== 'hierarchy' && optionValue !== 'sunburst')
-      }
-      if (["count","unique_count","view_type"].includes(lastOperation)) {
+      if (["count","unique_count"].includes(lastOperation)) {
         return (optionValue !== 'barChart' && optionValue !== 'pieChart')
       }
     },
@@ -241,6 +282,7 @@ export default {
 
       if(this.extractViewType(this.codeInput)){
         const viewType = this.extractViewType(this.codeInput)
+        store.commit('setSelectedViewType',viewType)
       }
 
       // 前端可以直接把最后的操作传给后端 后面再改
@@ -248,11 +290,21 @@ export default {
           .then(response => {
             // 使用 Vuex action 更新 responseData
             this.$store.dispatch('saveResponseData', response.data);
+            this.$store.dispatch('saveCurExpression',this.codeInput);
             this.responseData = response.data;
             this.operation = this.responseData["operation"]
 
             if (this.operation === "original") {
               this.$store.dispatch('saveOriginalTableData', { key: this.codeInput, value: this.responseData['result'] });
+            }
+            else{
+              axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput.split(".")[0], startTime:startTime, endTime:endTime })
+                  .then(response => {
+                    const responseData = response.data;
+                    this.$store.dispatch('saveOriginalTableData', { key: this.codeInput.split(".")[0], value: responseData['result'] });
+                  })
+                  .catch(error => {
+                  });
             }
           })
           .catch(error => {
@@ -267,10 +319,21 @@ export default {
         this.history.push(this.codeInput)
       }
     },
+
     selectHistory(item) {
       this.codeInput = item; // 设置 codeInput 为选中的历史记录
-      this.executeCode();
+      store.dispatch('saveIsSelectHistory');
+      store.dispatch('saveCurExpression',item);
+      const  allChildDivs=this.getDiv()
+      const matchingKeys = Object.keys(allChildDivs).find(key => allChildDivs[key] === this.codeInput);
+
+      if (matchingKeys) {
+        store.dispatch('saveSelectBox',matchingKeys);
+      } else {
+        this.executeCode()
+      }
     },
+
     deleteHistory(index) {
       this.history.splice(index, 1); // 删除特定的历史记录
     },
@@ -279,20 +342,15 @@ export default {
 </script>
 
 <style scoped>
-/deep/ .el-tabs__item {
+:deep(.el-tabs__item) {
   color: grey;
-  font-size: 15.5px;
+  font-size: 0.8vw;
   background: #eeeeee;
   border: 2px solid white;
 }
 
-/deep/ .el-tabs__item.is-active {
+:deep(.el-tabs__item.is-active) {
   color: grey;
   background: #f1f9ff;
 }
-
-/deep/ .el-tabs__active-bar {
-  background-color: transparent;
-}
-
 </style>

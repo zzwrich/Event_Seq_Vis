@@ -46,7 +46,7 @@ export default {
       const offsetY = block5Rect.top;
       const containerWidth=block5Rect.width
       const containerHeight=block5Rect.height
-      const rectNum=10
+      const rectNum=8
 
       //判断是否被拖动至于指定位置
       const blockElement = document.getElementsByClassName("workflowArea")[0]
@@ -58,8 +58,8 @@ export default {
       const block5Width = block5Rect.width;
       const block5Height = block5Rect.height;
 
-      const rectWidth= 0.05;
-      const rectWidthFloat= 0.05*rootWidth
+      const rectWidth= 0.45/rectNum;
+      const rectWidthFloat= rectWidth*rootWidth
       const rectSpacing =rectWidthFloat/2
       const totalWidth = rectNum*rectWidthFloat+(rectNum-1)*rectSpacing
       const marginLeft = (containerWidth-totalWidth)/2
@@ -70,7 +70,7 @@ export default {
 
       // 计算文本大小
       function calculateFontSize(rectWidth, rectHeight) {
-        return Math.min(rectWidth, rectHeight) / 10 + "px";
+        return Math.min(rectWidth, parseFloat(rectHeight.replace('%', ''))/100*rootHeight) / 4 + "px";
       }
 
       for (let i = 0; i < rectNum; i++) {
@@ -117,7 +117,7 @@ export default {
         rect.style('filter', 'url(#drop-shadow)');
 
         // 运算块文字
-        let textContent = ["filter","group_by","count","unique_count","seq_view",'agg_view','view_type','unique_attr',"intersection_set","difference_set"]
+        let textContent = ["group by","count","unique count","seq view",'view type','unique attr',"intersection set","difference set"]
 
         const text = svg.append('text')
             .text(textContent[i]) // 使用数组中的文本
@@ -157,7 +157,7 @@ export default {
               const originX=rectCoordinates[i].x
               const originY=rectCoordinates[i].y
 
-              if ((curX+rectWidth*rootWidth) < blockLeft || curX > blockRight || (curY+rectHeight*rootHeight) < blockTop || curY > blockBottom) {
+              if ((curX+rectWidthFloat) < blockLeft || curX > blockRight || (curY+rectHeightFloat) < blockTop || curY > blockBottom) {
                 // 位置不匹配，恢复至初始位置
                 rect.attr('x', originX)
                     .attr('y', originY)

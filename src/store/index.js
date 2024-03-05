@@ -17,13 +17,22 @@ const store = createStore({
             isSelectData:false,
             isSelectNode:false,
             selectContainer: "",
+            selectBox: "",
             isSelectContainer: "",
             isSelectParameter:false,
             globalHighlight: [],
+            globalMouseover: [],
             curHighlightContainer: "",
+            curMouseoverContainer: "",
             originalTableData:{},
             filterRules:{},
-            dateRange: []
+            mouseoverRules:{},
+            dateRange: [],
+            selectedViewType: "",
+            isSelectedViewType: false,
+            isSelectHistory: "",
+            sheetName: "",
+            sheetData: [],
         };
     },
     mutations: {
@@ -75,6 +84,9 @@ const store = createStore({
         setSelectContainer(state, option) {
             state.selectContainer = option;
         },
+        setSelectBox(state, option) {
+            state.selectBox = option;
+        },
         setIsSelectContainer(state) {
             state.isSelectContainer = !state.isSelectContainer;
         },
@@ -87,8 +99,14 @@ const store = createStore({
         clearGlobalHighlight(state) {
             state.globalHighlight = []
         },
+        setGlobalMouseover(state,option) {
+            state.globalMouseover.push(option);
+        },
         setCurHighlightContainer(state, option) {
             state.curHighlightContainer = option;
+        },
+        setCurMouseoverContainer(state, option) {
+            state.curMouseoverContainer = option;
         },
         setOriginalTableData(state, { key, value }) {
             if (!(key in state.originalTableData)) {
@@ -98,8 +116,26 @@ const store = createStore({
         setFilterRules(state, option) {
             state.filterRules = option;
         },
+        setMouseoverRules(state, option) {
+            state.mouseoverRules = option;
+        },
         setDateRange(state, option) {
             state.dateRange = option;
+        },
+        setSelectedViewType(state, option) {
+            state.selectedViewType = option;
+        },
+        setIsSelectedViewType(state) {
+            state.isSelectedViewType = !state;
+        },
+        setIsSelectHistory(state) {
+            state.isSelectHistory = !state.isSelectHistory;
+        },
+        setSheetName(state, option) {
+            state.sheetName = option;
+        },
+        setSheetData(state, option) {
+            state.sheetData = option;
         },
     },
     actions: {
@@ -151,6 +187,9 @@ const store = createStore({
         saveSelectContainer({ commit }, option) {
             commit('setSelectContainer', option);
         },
+        saveSelectBox({ commit }, option) {
+            commit('setSelectBox', option);
+        },
         saveIsSelectContainer({ commit }) {
             commit('setIsSelectContainer');
         },
@@ -163,8 +202,14 @@ const store = createStore({
         clearGlobalHighlight({ commit }) {
             commit('clearGlobalHighlight');
         },
+        saveGlobalMouseover({ commit }, option) {
+            commit('setGlobalMouseover', option);
+        },
         saveCurHighlightContainer({ commit }, option) {
             commit('setCurHighlightContainer',option);
+        },
+        saveCurMouseoverContainer({ commit }, option) {
+            commit('setCurMouseoverContainer',option);
         },
         saveOriginalTableData({ commit }, { key, value }) {
             commit('setOriginalTableData',{ key, value });
@@ -172,8 +217,26 @@ const store = createStore({
         saveFilterRules({ commit }, option) {
             commit('setFilterRules', option);
         },
+        saveMouseoverRules({ commit }, option) {
+            commit('setMouseoverRules', option);
+        },
         saveDateRange({ commit }, option) {
             commit('setDateRange', option);
+        },
+        saveSelectedViewType({ commit }, option) {
+            commit('setSelectedViewType', option);
+        },
+        saveIsSelectedViewType({ commit }) {
+            commit('setIsSelectedViewType');
+        },
+        saveIsSelectHistory({ commit }) {
+            commit('setIsSelectHistory');
+        },
+        saveSheetName({ commit }, option) {
+            commit('setSheetName', option);
+        },
+        saveSheetData({ commit }, option) {
+            commit('setSheetData',option);
         },
     }
 });

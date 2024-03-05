@@ -1,12 +1,29 @@
-.container {
+.myLine {
 	position: absolute;
-	height: 100%;
 	width: 100%;
+	top: 59%;
+	height: 2px;
+	background-image: linear-gradient(to right, #D3D3D3 45%, rgba(255,255,255,0) 0%); /* 35%设置虚线点x轴上的长度 */
+	background-position: bottom; /* top配置上边框位置的虚线 */
+	background-size: 6px 2px; /* 第一个参数设置虚线点的间距；第二个参数设置虚线点y轴上的长度 */
+	background-repeat: repeat-x;
+	z-index: 0
 }
 
-.workflowArea {
-	position: relative;
-	width: 100px;
-	height: 100%;
+.data {
+	position: absolute;
+	left: 10px;
+	top: 2%;
+	font-size: 80%;
+	color: #666666;
+	z-index: 0
 }
 
+.view {
+	position: absolute;
+	left: 10px;
+	top: 61%;
+	font-size: 80%;
+	color: #666666;
+	z-index: 0
+}

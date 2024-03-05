@@ -1,8 +1,9 @@
 import * as d3 from "d3";
 import store from '@/store'
+import * as d3Sankey from "@/components/ResultAtea/d3-sankey/index.js";
+import axios from "axios";
 
 export function exportTableToCSV(containerId, filename) {
-    console.log("con",containerId)
     const csv = [];
     const rows = document.querySelectorAll("#" + containerId + " .el-table tr");
 
@@ -146,99 +147,6 @@ export function toggleVisibility(element, button) {
     }
 }
 
-//柱状图
-export function getBarChartOption(data) {
-    const outerKeys = Object.keys(data);
-    return {
-        title: {
-            text: 'Count Result',
-        },
-        tooltip: {
-            trigger: 'axis',
-        },
-        toolbox: {
-            show: true,
-            feature: {
-                mark: { show: true },
-                dataView: { show: true, readOnly: false },
-                magicType: { show: true, type: ['line', 'bar'] },
-                restore: { show: true },
-                saveAsImage: { show: true }
-            }
-        },
-        legend: {
-            data: outerKeys,
-        },
-        xAxis: {
-            type: 'category',
-            data: Object.keys(data[outerKeys[0]]),
-        },
-        yAxis: {
-            type: 'value',
-        },
-        series: outerKeys.map(key => ({
-            name: key,
-            type: 'bar',
-            data: Object.keys(data[key]).map(innerKey => data[key][innerKey]),
-            emphasis: {
-                itemStyle: {
-                    opacity: 0.8,
-                    shadowBlur: 10,
-                    shadowOffsetX: 0,
-                    shadowColor: 'rgba(0, 0, 0, 0.5)',
-                },
-            },
-            cursor: 'pointer',
-        }))
-    };
-}
-// 饼状图
-export function getPieChartOption(data) {
-    const seriesData = [];
-    for (const outerKey in data) {
-        for (const innerKey in data[outerKey]) {
-            seriesData.push({
-                name: innerKey,
-                value: data[outerKey][innerKey]
-            });
-        }
-    }
-
-    return {
-        tooltip: {
-            trigger: 'item',
-            formatter: '{a} <br/>{b}: {c} ({d}%)'
-        },
-        toolbox: {
-            show: true,
-            feature: {
-                dataView: { show: true, readOnly: false },
-                saveAsImage: { show: true }
-            }
-        },
-        legend: {
-            orient: 'vertical',
-            left: 'left',
-            data: seriesData.map(item => item.name),
-        },
-        series: [
-            {
-                name: 'Count Result',
-                type: 'pie',
-                radius: '55%',
-                data: seriesData,
-                emphasis: {
-                    itemStyle: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                    }
-                }
-            }
-        ]
-    };
-}
-
 export function convertToTreeData(data,seqView) {
     // 初始化树结构
     const root = { name: "root", children: [] };
@@ -338,16 +246,31 @@ export function estimateSankeySize(nodes, nodeSpacing) {
     let maxDepth = Math.max(...nodes
         .filter(node => node.name !== "unknown")
         .map(node => {
-        const numbers = node.name.split(' ').map(str => parseInt(str, 10));
+        const numbers = node.name.split('*').map(str => parseInt(str, 10));
         return numbers[numbers.length - 1];
     }));
+
     if(nodes.some(node => node.name === "unknown")){
         if(maxDepth===0){
             maxDepth=1
         }
     }
+
     // 计算宽度和高度
     return  maxDepth * nodeSpacing ;
+}
+
+// 检查一个字符串是否为有效的时间格式
+function findTimeKey(data) {
+    // 遍历对象的每个键值对
+    for (const [key] of Object.entries(data)) {
+        // 尝试解析日期时间字符串
+        if (typeof data[key][0] === 'string' && data[key][0].includes('GMT')){
+            return key;
+        }
+    }
+    // 如果没有找到符合条件的键，返回null
+    return null;
 }
 
 // 给数据添加层级信息
@@ -368,11 +291,26 @@ export function processSankeyData(data, seqView) {
     const nodes = [];
     const links = [];
     const events = data[seqView];
+
+    const timeKey = findTimeKey(data);
+
     // 如果事件只有一个元素，直接添加节点
     if (events.length === 1) {
+        let data_by_key = {}
+        let timeValue
+        for (let key in data) {
+            // 将每个键对应的值存储在字典中
+            if (key === seqView) {
+                data_by_key[key] = data[key][0];
+            }
+            if (key === timeKey) {
+                timeValue = data[key][0];
+            }
+        }
+
         // 查找或添加节点
-        const sourceNode = nodes.find(node => node.name === events[0]) || { name:events[0]};
-        const targetNode = nodes.find(node => node.name === "unknown") || { name: "unknown" };
+        const sourceNode = nodes.find(node => node.name === events[0]) || { name:events[0],data: data_by_key,time:timeValue};
+        const targetNode = nodes.find(node => node.name === "unknown") || { name: "unknown",data:{},time:"" };
         if (!nodes.find(node => node.name === sourceNode.name)) {
             nodes.push(sourceNode);
         }
@@ -385,9 +323,25 @@ export function processSankeyData(data, seqView) {
         for (let i = 0; i < events.length - 1; i++) {
             const source = events[i];
             const target = events[i + 1];
+            // 初始化字典
+            let source_data_by_key = {}
+            let target_data_by_key = {}
+            let sourceTime,targetTime
+            for (const key in data) {
+                // 将每个键对应的值存储在字典中
+                if (key === seqView) {
+                    source_data_by_key[key] = data[key][i];
+                    target_data_by_key[key] = data[key][i + 1];
+                }
+                if (key === timeKey) {
+                    sourceTime = data[key][i];
+                    targetTime = data[key][i + 1];
+                }
+            }
+
             // 查找或添加节点
-            const sourceNode = nodes.find(node => node.name === source) || { name: source };
-            const targetNode = nodes.find(node => node.name === target) || { name: target };
+            const sourceNode = nodes.find(node => node.name === source) || { name: source,data:source_data_by_key,time: sourceTime };
+            const targetNode = nodes.find(node => node.name === target) || { name: target,data:target_data_by_key,time: targetTime };
             if (!nodes.find(node => node.name === sourceNode.name)) {
                 nodes.push(sourceNode);
             }
@@ -395,7 +349,7 @@ export function processSankeyData(data, seqView) {
                 nodes.push(targetNode);
             }
             // 添加链接
-            links.push({ head: { name: "head" }, tail: { name: "tail" }, source: sourceNode, target: targetNode, value: 1 });
+            links.push({ head: { name: "" }, tail: { name: "" }, source: sourceNode, target: targetNode, value: 1 });
         }
     }
     return { nodes, links };
@@ -404,7 +358,8 @@ export function processSankeyData(data, seqView) {
 export function createSunburstData(data, seqView) {
     if (data[seqView]) {
         return {
-            name: data[seqView].replace(/\s\d+$/, ''),
+            // name: data[seqView].replace(/\s\d+$/, ''),
+            name: data[seqView],
             children: Object.entries(data).filter(([key, value]) => key !== seqView)
                 .map(([key, value]) => ({ name: value,value:1 }))
         };
@@ -503,7 +458,6 @@ export function changeGlobalHighlight(d, containerId){
                 }
             }
             store.commit('setFilterRules', filterRules);
-
             Object.entries(allChildDivs).forEach(([key, value]) => {
                 const hasDot = value.includes('.');
                 // 根据是否包含 '.' 进行不同的处理
@@ -522,6 +476,97 @@ export function changeGlobalHighlight(d, containerId){
                 const myDiv = document.getElementById(key);
                 // 将字符串信息绑定到div的自定义属性上
                 myDiv.setAttribute("filteredCodeContext", modifiedString);
+            });
+        }
+    }
+}
+
+export function changeGlobalMouseover(d, containerId){
+    store.commit('setCurMouseoverContainer',containerId);
+
+    const index = store.state.globalMouseover.indexOf(d);
+    if (index !== -1) {
+        store.state.globalMouseover.splice(index, 1);
+    }
+    else {
+        store.commit('setGlobalMouseover', d);
+    }
+
+    let filterRules={}
+    const myDiv =  document.getElementById(containerId)
+    let codeContext =myDiv.getAttribute("codeContext");
+    const [dataKey] = codeContext.split(".");
+    const originalData = store.state.originalTableData[dataKey]
+
+    const parentDiv = document.getElementsByClassName('grid-item block4')[0];
+    const childDivs = parentDiv.querySelectorAll('div');
+    const allChildDivs = {};
+    // 遍历 children 数组
+    for (let i = 0; i < childDivs.length; i++) {
+        // 获取当前子元素的所有子 div 元素
+        const currentChildDivs = childDivs[i].querySelectorAll('div');
+        // 在当前子元素的子 div 中查找类名为 'chart-container' 的元素
+        for (let j = 0; j < currentChildDivs.length; j++) {
+            const currentDiv = currentChildDivs[j];
+            if (currentDiv.classList.contains('chart-container')) {
+                // 将 'chart-container' 元素的 id 添加到数组中
+                const curDivId = currentDiv.id
+                allChildDivs[curDivId] = document.getElementById(curDivId).getAttribute("codeContext");
+            }
+        }
+    }
+    if(store.state.globalMouseover.length===0){
+        Object.entries(allChildDivs).forEach(([key, value]) => {
+            const myDiv = document.getElementById(key);
+            // 将字符串信息绑定到div的自定义属性上
+            myDiv.setAttribute("mouseoverCodeContext", "");
+        });
+        filterRules={}
+        store.commit('setMouseoverRules', filterRules);
+    }
+    else{
+        for(let i=0;i<store.state.globalMouseover.length;i++){
+            const curd = store.state.globalMouseover[i]
+            // 当前点击的数据项在数据中的键 为了后面加上filter语句
+            const foundKey = findKeyByValue(originalData, curd);
+            if(foundKey!==null){
+                if (!(foundKey in filterRules)) {
+                    filterRules[foundKey] = []
+                    filterRules[foundKey].push(curd)
+                }
+                else{
+                    filterRules[foundKey].push(curd)
+                }
+            }
+            const filtersArray = [];
+
+            for (const key in filterRules) {
+                if (filterRules.hasOwnProperty(key)) {
+                    const values = filterRules[key];
+                    const filterString = `filter('${key}', 'in', ${JSON.stringify(values)})`;
+                    filtersArray.push(filterString);
+                }
+            }
+            store.commit('setMouseoverRules', filterRules);
+
+            Object.entries(allChildDivs).forEach(([key, value]) => {
+                const hasDot = value.includes('.');
+                // 根据是否包含 '.' 进行不同的处理
+                let modifiedString;
+                if(filtersArray.length!==0){
+                    if (hasDot) {
+                        const parts = value.split('.');
+                        modifiedString = `${parts[0]}.${filtersArray.join('.')}.${parts.slice(1).join('.')}`;
+                    } else {
+                        modifiedString = `${value}.${filtersArray.join('.')}`;
+                    }
+                }
+                else{
+                    modifiedString = ""
+                }
+                const myDiv = document.getElementById(key);
+                // 将字符串信息绑定到div的自定义属性上
+                myDiv.setAttribute("mouseoverCodeContext", modifiedString);
             });
         }
     }
@@ -550,4 +595,217 @@ export function fillData(originalData, newData) {
         }
     }
     return result;
+}
+
+export function createNodes(containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove){
+    let circleSpacing = sankeyNodesData[1].x1- sankeyNodesData[0].x1
+
+    console.log("数据",sankeyNodesData)
+    const partition = (newData) => {
+        return d3.partition().size([2 * Math.PI, newData.height + 1])(newData)
+    }
+
+    let classString,className,username
+    if(hasUsername){
+        classString = 'event-circle'
+    }
+    else{
+        classString = `sunburst-node`
+        className = 'circle'
+    }
+    const idString='sunburst-node-'
+    let trueIndex
+
+    // 循环遍历 sankeyNodesData
+    sankeyNodesData.forEach((nodeData, index) => {
+        const number = Object.keys(nodeData.data).length
+        const radius = Math.max((nodeData.x1 - nodeData.x0),(nodeData.y1 - nodeData.y0))/r
+
+        if(nodeData.name!=="unknown"){
+            let arr
+            if(hasUsername){
+                arr = nodeData.name.split("*");
+                username =  arr[arr.length - 1]
+                className = `circle-${username}`
+                trueIndex = arr[arr.length - 2]
+            }
+            else{
+                arr = nodeData.name.split("*"); // 使用冒号分割字符串
+                trueIndex = arr[arr.length - 1]
+            }
+
+            // 创建每个节点的旭日图数据
+            const hierarchyData = createSunburstData(nodeData.data, seqView);
+            // 计算每个旭日图的圆心位置和半径
+            let centerX,centerY
+
+            const x0 = sankeyNodesData.map(d => d.x0);
+            const x1 = sankeyNodesData.map(d => d.x1);
+            const minx0 = Math.min.apply(null,x0);
+            const maxx0 = Math.max.apply(null,x0);
+            // 找出最早和最晚的时间点
+            const minx1 = Math.min.apply(null,x1);
+            const maxx1 = Math.max.apply(null,x1);
+            if(alignment==="相对时间"||alignment===undefined){
+                centerX = (nodeData.x0 + nodeData.x1) / 2
+                if(hasUsername){
+                    centerY =  userLocation[username]
+                }
+                else{
+                    centerY = (nodeData.y0 + nodeData.y1) / 2
+                }
+                drawNodes()
+            }
+
+            else if(alignment==="绝对时间"){
+                const times = sankeyNodesData.map(d => d.time);
+                const dates = times.map(time => new Date(time));
+                // 找出最早和最晚的时间点
+                const minTime = new Date(Math.min.apply(null,dates));
+                const maxTime = new Date(Math.max.apply(null,dates));
+
+                const timeRange = maxTime - minTime;
+
+                const timeDiff = new Date(nodeData.time)- minTime;
+                const newx0 = (timeDiff / timeRange)*(maxx0-minx0)+minx0
+                const newx1 = (timeDiff / timeRange)*(maxx1-minx1)+minx1
+                centerX = (newx0 + newx1) / 2
+                if(hasUsername){
+                    centerY =  userLocation[username]
+                }
+                else{
+                    centerY = (nodeData.y0 + nodeData.y1) / 2
+                }
+                drawNodes()
+            }
+
+            else if(alignment==="全局对齐"){
+                // console.log("移动距离",userMove)
+                // console.log("索引",index)
+                const newx0 = userMove[index]*circleSpacing+minx0
+                const newx1 = userMove[index]*circleSpacing+minx1
+                centerX = (newx0 + newx1) / 2
+                if(hasUsername){
+                    centerY =  userLocation[username]
+                }
+                else{
+                    centerY = (nodeData.y0 + nodeData.y1) / 2
+                }
+                drawNodes()
+            }
+
+            else if(alignment==="局部对齐"){
+                centerX = (nodeData.x0 + nodeData.x1) / 2 + userMove[username]*circleSpacing
+                if(hasUsername){
+                    centerY =  userLocation[username]
+                }
+                else{
+                    centerY = (nodeData.y0 + nodeData.y1) / 2
+                }
+                drawNodes()
+            }
+
+            function drawNodes(){
+                // 绘制旭日图
+                const root = d3.hierarchy(hierarchyData).sum((d) => d.value).sort((a, b) => b.value - a.value)
+                const sunburstData = partition(root)
+                // 添加路径元素
+                let arc
+                if(number!==1){
+                    arc = d3.arc()
+                        .startAngle(function(d) { return d.x0; })
+                        .endAngle(function(d) { return d.x1; })
+                        .innerRadius(function(d) {
+                            if(d.depth===0){return 0}
+                            else{return 0}})
+                            // else{return radius/1.6}})
+                        .outerRadius(function(d) {
+                            if(d.depth===0){return radius/1.7}
+                            else{return radius}});
+                }
+                else{
+                    arc = d3.arc()
+                        .startAngle(function(d) { return d.x0; })
+                        .endAngle(function(d) { return d.x1; })
+                        .innerRadius(function(d) {return 0})
+                        .outerRadius(function(d) {return radius});
+                }
+
+                sankeyNodes = aggSankeyChart.selectAll(`[circleName="${className}"]`)
+                    .data(sunburstData.descendants(), (d) => {
+                        return d.data.name})
+                    .enter()
+                    .append('path')
+                    // 添加黑色边框
+                    .style('stroke', 'grey') // 设置边框颜色为黑色
+                    .style('stroke-width', '1px') // 设置边框宽度
+                    .attr('class', classString)
+                    .attr('id', `${idString}${trueIndex}`)
+                    .attr('circleName', className)
+                    .attr('cx', centerX)
+                    .attr('cy', centerY)
+                    .style('cursor','pointer')
+                    .attr("nodeText", nodeData.name)
+                    .attr('transform', `translate(${centerX}, ${centerY})`)
+                    .attr('d', arc)
+                    .style("fill", function(d) {
+                        if(d.depth === 0){return  colorMap[parseAction(arr[0])]}
+                        // else{return sunburstColor(d.data.name.split("*")[0]);}
+                        else{return colorMap[d.data.name.split("*")[0]]}
+                    })
+                    .attr('fill-opacity', 1)
+                    .on('mouseover', function (e, d) {
+                        const str = this.id;
+                        const parts = str.split("-");
+                        let circleId = parts[parts.length - 1]; // 获取最后一个部分
+                        // 获取与当前节点相关的所有连线
+                        // const relatedLinks = sankeyLinksData.filter(link => link.source === nodeData || link.target === nodeData);
+                        // const relatedNodes = getRelatedNodes(nodeData,sankeyLinksData);
+                        // highlightSankeyChart(aggSankeyChart, sankeyNodes, sankeyHeads, sankeyTails, relatedLinks, relatedNodes)
+                        sankeyTooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9)
+                        let tooltipText
+                        if(hasUsername){
+                            let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
+                            // 创建要显示的信息字符串
+                            tooltipText = "<strong>" + circlename + "</strong><br/>";
+                            Object.keys(data[username]).forEach(key => {
+                                if (Array.isArray(data[circlename][key]) && data[circlename][key][circleId] !== undefined) {
+                                    let cellData = data[circlename][key][circleId]
+                                    if (typeof cellData === 'string' && cellData.includes('GMT')) {
+                                        // 如果数据是日期时间字符串类型，进行格式化
+                                        cellData = formatDateTime(cellData);
+                                    }
+                                    tooltipText += key + ": " + cellData + "<br/>";
+                                }
+                            });
+                        }
+
+                        else{
+                            if(d.data.name===nodeData.name.split("*")[0]){
+                                tooltipText = `<p>${d.data.name} <strong>${nodeData.value}</strong></p>`
+                            }
+                            else{
+                                if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
+                                    d.data.name = formatDateTime(d.data.name);
+                                }
+                                tooltipText = `<p>${d.data.name}</p>`
+                            }
+                        }
+                        sankeyTooltip.html(tooltipText) // 设置提示框的内容
+                            .style("left", (e.pageX)- containerRect.left + container.scrollLeft + "px")
+                            .style("top", (e.pageY - containerRect.top + 10) + "px")
+                            .style("width", "auto")
+                            .style("white-space", "nowrap");
+                    })
+                    .on('mouseout', function () {
+                        sankeyTooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            }
+
+        }
+    });
 }

@@ -4,7 +4,7 @@
 	background: #eeeeee;
 	left: 3px;
 	right: 3px;
-	top: 0.5% ;
+	top: 0.2vh;
 	display: flex;
 	justify-content: flex-end;
 	border-radius: 5px
@@ -59,10 +59,37 @@
 	background-color: #f0f0f0;
 }
 
+/*下拉框样式*/
+.el-select {
+	margin-left: 1%;
+	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	border: 1px solid #dcdfe6;
+	border-radius: 4px;
+	padding: 2px 5px;
+	font-size: 70%;
+	color: #606266;
+	background-color: #fff;
+	cursor: pointer;
+	outline: none;
+	width: 7vw;
+	height: 3vh;
+}
+
+#agg-selection{
+	 width: 5.2vw !important;
+ }
+
+.el-select:focus {
+	border-color: #409eff;
+}
+
+.el-select:hover {
+	border-color: #c0c4cc;
+}
 /*按钮样式*/
 .el-button {
 	display: inline-block;
-	line-height: 1;
 	white-space: nowrap;
 	cursor: pointer;
 	background: #409EFF;
@@ -79,7 +106,6 @@
 	-webkit-user-select: none;
 	-ms-user-select: none;
 	padding: 12px 20px;
-	font-size: 14px;
 	border-radius: 4px;
 }
 
@@ -96,6 +122,28 @@
 	color: #fff;
 }
 
+#check{
+	width: 10%;
+	height: 3vh;
+	font-size: 70%;
+}
+
+#reset{
+	width: 10%;
+	height: 3vh;
+	font-size: 70%;
+}
+
+#start-selection{
+	font-size: 70%;
+	height: 3vh;
+}
+
+#close-selection{
+	font-size: 70%;
+	height: 3vh;
+}
+
 .event-selected {
 	stroke: #ff0; /* 外边框颜色，可以根据需要调整 */
 	stroke-width: 2px; /* 外边框宽度 */
@@ -106,17 +154,36 @@
 /*高亮样式*/
 .highlighted-username {
 	fill: #F56C6C !important;
-	font-size: 1.1em;
+	font-size: 1.02em;
 }
 
 .selected-username {
 	fill: #6c93f5 !important;
-	font-size: 1.1em;
+	font-size: 1.02em;
+}
+
+.mouseover-username {
+	text-shadow: 0 0 5px white; /* 设置光圈效果 */
+}
+
+.mouseover-legend {
+	text-shadow: 0 0 4px grey;
+}
+
+.mouseover-circle {
+	filter: drop-shadow(0 0 4px grey);
+}
+
+.mouseover-path {
+	filter: drop-shadow(0 0 4px #F56C6C);
 }
 
 /* 勾选框样式 */
 .el-checkbox {
-	padding-left: 45px;
+	padding-left: 2.5vw;
+	font-size: 70% !important;
+	display: flex;
+	align-items: flex-start; /* 顶部对齐，水平方向上对齐 */
 }
 
  /*隐藏默认的勾选框 */
@@ -131,12 +198,12 @@
 /* 创建自定义勾选框外观 */
 .el-checkbox span {
 	position: absolute;
-	top: 0;
+	top: 10%;
 	left: 0;
-	margin-top: 2px;
-	margin-left: 8px;
-	width: 30px;
-	height: 30px;
+	margin-top: 5%;
+	margin-left: 10%;
+	width: 2.5vh;
+	height: 2.5vh;
 	background-color: #fff;
 	border: 1px solid #dcdfe6;
 	border-radius: 4px;
@@ -163,30 +230,32 @@
 /* 当勾选框被选中时显示勾 */
 .el-checkbox input:checked ~ span:after {
 	display: block;
-	left: 10px;
-	top: 6.5px;
-	width: 5px;
-	height: 10px;
+	left: 0.8vh;
+	top: 0.4vh;
+	width: 0.5vh;
+	height: 1vh;
 	border: solid white;
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }
 
 /* 输入框样式 */
-.el-input {
-	border: 1px solid #dcdfe6;
+.my-input {
+	border: 1px solid #eeeeee;
 	border-radius: 4px;
-	width: 10px;
-	margin-left: 10px; /* 和标签之间的间距 */
+	width: 4vw !important;
+	height: 3vh;
+	margin-left: 1%;
 	box-sizing: border-box;
 	transition: border-color .2s;
+	font-size: 70% !important;
 }
 
-.el-input:hover {
+.my-input:hover {
 	border-color: #c0c4cc;
 }
 
-.el-input:focus {
+.my-input:focus {
 	outline: none;
 	border-color: #409eff;
 }
@@ -209,10 +278,10 @@
 
 /* 包装容器样式 */
 .input-container {
-	width: 660px;
+	height: 5%;
 	display: flex;
 	align-items: center;   /* 垂直居中对齐 */
-	gap: 10px;             /* 子元素之间的间距 */
+	gap: 1%;             /* 子元素之间的间距 */
 }
 
 .controls-container {
@@ -257,16 +326,17 @@
 /* 添加样式到坐标轴 */
 .x-axis text,
 .x-axis path {
-	font-size: 14px;
+	/*font-size: 14px;*/
 	color: #606266;
 }
 
 .y-axis text,
 .y-axis path {
-	font-size: 14px;
+	/*font-size: 14px;*/
 	color: #606266;
 }
 
-/*.chart-container::-webkit-scrollbar {*/
-/*	display: none;*/
-/*}*/
+.heatmapX-axis line {
+	fill: none;
+	stroke: none;
+}
