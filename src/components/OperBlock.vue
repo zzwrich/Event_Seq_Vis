@@ -46,7 +46,7 @@ export default {
       const offsetY = block5Rect.top;
       const containerWidth=block5Rect.width
       const containerHeight=block5Rect.height
-      const rectNum=8
+      const rectNum=9
 
       //判断是否被拖动至于指定位置
       const blockElement = document.getElementsByClassName("workflowArea")[0]
@@ -58,7 +58,7 @@ export default {
       const block5Width = block5Rect.width;
       const block5Height = block5Rect.height;
 
-      const rectWidth= 0.45/rectNum;
+      const rectWidth= 0.5/rectNum;
       const rectWidthFloat= rectWidth*rootWidth
       const rectSpacing =rectWidthFloat/2
       const totalWidth = rectNum*rectWidthFloat+(rectNum-1)*rectSpacing
@@ -117,7 +117,7 @@ export default {
         rect.style('filter', 'url(#drop-shadow)');
 
         // 运算块文字
-        let textContent = ["group by","count","unique count","seq view",'view type','unique attr',"intersection set","difference set"]
+        let textContent = ["filter","group by","count","unique count","aggregate",'view type','unique attr',"intersection set","difference set"]
 
         const text = svg.append('text')
             .text(textContent[i]) // 使用数组中的文本
@@ -145,7 +145,7 @@ export default {
               const id=dragTarget.attr('id')
               const rect=d3.select('#myRect'+id.substring(id.length-1))
               const text=d3.select('#myText'+id.substring(id.length-1))
-              
+
               rect.attr('x', pt[0] - rectWidthFloat/2)
                   .attr('y', pt[1] - rectHeightFloat/2)
               text.attr('x', pt[0])
@@ -195,7 +195,7 @@ export default {
   pointer-events: none;
 }
 
-/deep/.draggable-rect {
+:deep(.draggable-rect) {
   pointer-events: auto; /* 矩形块接收鼠标事件 */
 }
 

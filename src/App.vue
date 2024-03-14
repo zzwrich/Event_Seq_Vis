@@ -17,9 +17,9 @@
 		<div class="grid-item block4">
       <result-area />
 		</div>
-		<div class="grid-item block5">
-      <oper-block />
-		</div>
+<!--		<div class="grid-item block5">-->
+<!--      <oper-block />-->
+<!--		</div>-->
 	</div>
 </template>
 

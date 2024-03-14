@@ -80,7 +80,7 @@ watch(() => store.state.selectBox, (newValue, oldValue) => {
 });
 
 // 观察 Vuex 中 responseData 的变化
-watch(() => store.state.responseData, (newValue, oldValue) => {
+watch(() => store.state.responseData, (newValue) => {
   const operation = newValue.operation
   const data = newValue.result
   const visualType=store.state.visualType

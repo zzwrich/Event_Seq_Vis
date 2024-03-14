@@ -66,8 +66,8 @@ export default {
   },
   methods: {
     cellClicked(cellValue, columnName) {
-      this.$store.dispatch('saveIsSelectParameter');
-      this.$store.dispatch('saveSelectedParameter',cellValue);
+      // this.$store.dispatch('saveIsSelectParameter');
+      // this.$store.dispatch('saveSelectedParameter',cellValue);
     },
     headerClicked(column, event) {
       this.$store.dispatch('saveIsSelectData');
@@ -85,9 +85,9 @@ export default {
 
 <style>
 .data-table-container {
-  height: 28%;
+  height: 36%;
   position: absolute;
-  top: 0; /* 底部与父容器底部对齐 */
+  top: 5%; /* 底部与父容器底部对齐 */
   max-height: 100%;
   overflow: auto; /* 如果内容超出最大高度，显示滚动条 */
   left:0;

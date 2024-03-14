@@ -9,16 +9,33 @@
     <el-button @click="importExample" style="position:absolute;right: 21%;top: 10px;z-index: 1;width: 5%;height: 15%;font-size: 2%">Sample</el-button>
     <div class="workflowArea" id="workflowContainer"></div>
   </div>
+  <pop-up
+      :left="popupLeft"
+      :top="popupTop"
+      :visible="popupVisible"
+      :operation-list="popupOperation"
+      :visual-list="popupVisualization"
+      :param-list="popupParam"
+      :display-mode="displayParam"
+      :checkbox-options="checkboxOptions"
+      :img-list="popupVisImg"
+      @close="closeHandler"/>
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import {mapState} from 'vuex';
 import * as d3 from "d3";
 import dagreD3 from 'dagre-d3';
 import store from "@/store/index.js";
 import "./style.css"
+import popUp from './popUp.vue';
+import axios from "axios";
+import {addParameter, enhanceFilterExpression, getNodePosition} from "@/components/OperArea/tool.js";
 
 export default {
+  components: {
+    popUp
+  },
   data() {
     return {
       graph: new dagreD3.graphlib.Graph().setGraph({}),
@@ -34,7 +51,19 @@ export default {
       // 存放路径(节点)与代码的对应关系
       pathData: {},
       // 存储节点的上一个位置
-      nodePositions: {}
+      nodePositions: {},
+      // 弹窗位置和内容
+      popupLeft: 0,
+      popupTop: 0,
+      popupVisible: false,
+      newPopupVisible: false,
+      popupOperation:[],
+      popupVisualization:[],
+      popupVisImg:[],
+      popupParam:[],
+      displayParam:"",
+      checkboxOptions:{},
+      filterExpression: {}
     };
   },
   computed: {
@@ -49,7 +78,8 @@ export default {
       selectContainer: state=>state.selectContainer,
       isSelectContainer: state=>state.isSelectContainer,
       isSelectVisualType: state=>state.isSelectVisualType,
-      isSelectHistory: state =>state.isSelectHistory
+      isSelectHistory: state =>state.isSelectHistory,
+      filterParam: state=>state.filterParam
     }),
   },
   watch: {
@@ -77,7 +107,7 @@ export default {
     },
     // 监听选择参数的变化
     isSelectedParameter() {
-      if (this.currentNode && this.selectedParameter) {
+      if (this.currentNode && this.selectedParameter && this.currentNode!=="node0") {
         this.updateNodeWithSquare(this.currentNode, this.selectedParameter);
       }
       this.handleNodeClick(this.currentNode)
@@ -85,7 +115,15 @@ export default {
     // 监听可视化构型的选择
     isSelectVisualType() {
       if (this.currentNode) {
-        this.AddViewType(this.currentNode, store.state.visualType);
+        if(((this.selectedOperator==="group_by")||(this.selectedOperator==="flatten"))
+            &&(["barChart", "pieChart", "sunBurst"].includes(store.state.visualType))){
+          this.showOperator(this.currentNode,"count");
+        }
+        else{
+          store.commit('setSelectedOperator',"view type")
+          this.showOperator(this.currentNode,"view type");
+          this.AddViewType(this.currentNode, store.state.visualType);
+        }
       }
       this.handleNodeClick(this.currentNode)
     },
@@ -158,6 +196,10 @@ export default {
     this.setupGraph();
   },
   methods: {
+    closeHandler() {
+      // 关闭弹窗的逻辑
+      this.popupVisible = false; // 将弹窗状态设置为不可见
+    },
     onNodePositionChange() {
       // 重新计算路径
       this.linksData.forEach(link => {
@@ -167,7 +209,6 @@ export default {
         d3.select(`#${link.source}-${link.target}`).attr('d', newPath);
         // 更新textPath的路径
         d3.select(`#textPath-${link.source}-${link.target}`).attr('d', newPath);
-
       });
     },
 
@@ -213,25 +254,6 @@ export default {
       svg.selectAll('.edgeLabel').style('visibility', 'visible');
     },
 
-    addParameter(string, parameter) {
-      let parts = string.split('.');
-      // 找到最后一个函数调用
-      let lastFunction = parts[parts.length - 1];
-      // 检查圆括号内是否有内容，以判断是否已有参数
-      let parenthesisContent = lastFunction.substring(lastFunction.indexOf('(') + 1, lastFunction.lastIndexOf(')'));
-      if (parenthesisContent.trim() !== '') {
-        // 如果已有参数，添加新参数
-        let lastParenIndex = lastFunction.lastIndexOf(')');
-        lastFunction = lastFunction.substring(0, lastParenIndex) + ', "' + parameter + '")';
-      } else {
-        // 如果没有参数，添加第一个参数
-        lastFunction = lastFunction.replace('()', '("' + parameter + '")');
-      }
-      // 重建字符串
-      parts[parts.length - 1] = lastFunction;
-      return parts.join('.');
-      },
-
     setupGraph() {
       const container = document.getElementsByClassName('grid-item block3')[0]
       const containerRect = container.getBoundingClientRect();
@@ -271,7 +293,7 @@ export default {
       this.updateGraph();
     },
 
-    addNode(data, shape) {
+    addNode(data) {
       const newNodeId = `node${this.nextNodeId++}`;
       const container = document.getElementsByClassName('grid-item block3')[0]
       const containerRect = container.getBoundingClientRect();
@@ -352,7 +374,7 @@ export default {
             .data(this.linksData)
             .enter()
             .append('text')
-            .attr('dy', -6)  // 垂直方向微调
+            .attr('dy', -7)  // 垂直方向微调
             .append('textPath')
             .attr('xlink:href', (_, i) => `#${uniqueId}`)
             .text(operation)
@@ -361,7 +383,7 @@ export default {
             .style('fill', '#778899')
             .style('font-weight','bold')
             .style('font-size','80%')
-            .attr('startOffset', '96%')
+            .attr('startOffset', '95%')
             .attr('text-anchor', 'end');
 
         const marker = svg.append('defs')
@@ -371,19 +393,14 @@ export default {
             .attr('refX',6)  // 箭头坐标
             .attr('refY', 0)
             .attr('orient', 'auto')
-            .attr('markerWidth', "4%")  // 箭头大小
-            .attr('markerHeight', "4%")
+            .attr('markerWidth', "3%")  // 箭头大小
+            .attr('markerHeight', "3%")
             .attr('xoverflow', 'visible');
 
         marker.append('svg:path')
             .attr('d', 'M0,-4L8,0L0,4L3,0L0,-4')
             .attr('fill', 'grey'); // 箭头颜色
       }
-    },
-    getNodePosition(node) {
-      const x = node.x;
-      const y = node.y;
-      return {x, y};
     },
 
     calculateArcPath(sourceNode, targetNode) {
@@ -392,11 +409,11 @@ export default {
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       const offsetX = 0.05*containerWidth;
-      const offsetY = 0.22*containerHeight;
+      const offsetY = 0.24*containerHeight;
       const height = 0.06*containerHeight
       // 根据需要计算弧线的路径，这里简化为一个弧线
-      const sourcePosition = this.getNodePosition(sourceNode);
-      const targetPosition = this.getNodePosition(targetNode);
+      const sourcePosition = getNodePosition(sourceNode);
+      const targetPosition = getNodePosition(targetNode);
       const distance = Math.sqrt(
           Math.pow(targetPosition.x - sourcePosition.x, 2) +
           Math.pow(targetPosition.y - sourcePosition.y, 2)
@@ -450,6 +467,10 @@ export default {
       const clickNode = this.graph.node(nodeId);
       // 为当前节点设置高亮效果
       this.highlightNode(clickNode)
+
+      this.popupLeft = clickNode.x + 125;
+      this.popupTop = clickNode.y +20;
+
       this.updateGraph()
       // 设置当前节点
       this.currentNode = nodeId;
@@ -458,11 +479,38 @@ export default {
       const nodes = pathToNode.nodes
       const edges = pathToNode.edges
       const completePath = this.createCompletePaths(nodes, edges)
+
+      const images = [
+        { url: '../../../static/table.png', vis: "table", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/barChart.png', vis: "barChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/pieChart.png', vis: "pieChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/sunBurst.png', vis: "sunBurst", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/timeLine.png', vis: "timeLine", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/Sankey.png', vis: "Sankey", style:"width: 35px; height: 35px;margin: 0 5px;" },
+        { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 35px; height: 35px;margin: 0 5px;" }
+      ]
+
+      // 初始状态，还没有进行任何操作
       if(typeof(completePath)=="string"){
         this.$store.dispatch('saveCurExpression',completePath);
+        this.popupParam = []
+        // 获取下一步可能的操作和可视化构型
+        axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
+            .then(response => {
+              const operationList = response.data["operationList"]
+              const visualizationList = response.data["visualizationList"]
+              this.popupOperation=operationList
+              this.popupVisualization=visualizationList
+              // 使用数组过滤方法来筛选保留符合条件的图片
+              this.popupVisImg = images.filter(img => visualizationList.includes(img.vis));
+              this.popupVisible = true;
+            })
+            .catch(error => {
+              console.error(error);
+            });
       }
       else{
-        completePath.forEach(item => {
+        completePath.forEach((item,index) => {
           // 获取对象的键和值
           let key = Object.keys(item)[0];
           let value = item[key];
@@ -473,13 +521,99 @@ export default {
             this.$store.dispatch('saveCurExpression',this.$store.state.curExpression + '.' + value + "()");
           }
           else if(key === "parameter"){
+            const lastIndex = index-1
+            const lastKey = Object.keys(completePath[lastIndex])[0];
+            const lastValue = completePath[index-1][lastKey];
             //更新表达式
             const curExpression = this.$store.state.curExpression
-            const newExpression = this.addParameter(curExpression, value)
+            let newExpression = addParameter(curExpression, value)
+            if(lastValue==="filter"){
+              if(value!=="time"){
+                if(this.filterExpression.hasOwnProperty(lastIndex.toString())){
+                  newExpression = this.filterExpression[lastIndex];
+                }
+                else{
+                  newExpression = enhanceFilterExpression(newExpression, this.filterParam);
+                  this.filterExpression[lastIndex.toString()] = newExpression
+                }
+              }
+            }
             this.$store.dispatch('saveCurExpression',newExpression);
+            if(lastValue==="view_type"){
+              this.$store.dispatch('saveVisualType', value);
+            }
           }
         });
+        // 筛选出包含 'operation' 键的对象，并提取其值
+        const operationsArray = completePath
+            .filter(item => item.operator) // 筛选出含有 'operator' 键的对象
+            .map(item => item.operator); // 提取这些对象的 'operator' 键的值
+
+        const operaLength = operationsArray.length
+        const lastOperation = operationsArray[operaLength-1]
+
+        store.dispatch('saveSelectedOperator', lastOperation);
+
+        const codeContext = store.state.curExpression
+        const [dataKey] = codeContext.split(".");
+        const originalData = store.state.originalTableData[dataKey]
+        const allKeys = Object.keys(originalData)
+        if(lastOperation==="filter"){
+          const uniqueProperties = {};// 遍历对象的每个键
+          Object.keys(originalData).forEach(key => {
+            if(!key.includes("时间")){
+              const uniqueValues = new Set(originalData[key]);
+              // 将 Set 转换为数组并存储在结果对象中
+              uniqueProperties[key] = Array.from(uniqueValues);
+            }
+          });
+          this.displayParam = "filter"
+          this.checkboxOptions = uniqueProperties
+        }
+        else if(lastOperation==="unique_count"){
+          this.displayParam = "unique_count"
+          this.popupParam = allKeys
+        }
+        else{
+          this.displayParam = "else"
+          this.popupParam = allKeys
+        }
+        if(lastOperation!=="view_type"){
+          // 获取下一步可能的操作和可视化构型
+          axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: operationsArray})
+              .then(response => {
+                const operationList = response.data["operationList"]
+                const visualizationList = response.data["visualizationList"]
+                this.popupOperation=operationList
+                this.popupVisualization=visualizationList
+                this.popupVisImg = images.filter(img => visualizationList.includes(img.vis));
+                if(lastOperation==="group_by"||lastOperation==="flatten"){
+                  const groupNum = operationsArray.filter(item => item === "group_by").length;
+                  const flattenNum = operationsArray.filter(item => item === "flatten").length;
+                  // 计算group_by和flatten的数量差
+                  const diff = groupNum - flattenNum
+                  // 检查是否以count/unique_count结束
+                  if (diff === 1){
+                    this.popupVisualization.push("barChart", "pieChart")
+                    this.popupVisImg = images.filter(img => this.popupVisualization.includes(img.vis));
+                  }
+                  else if (diff > 1){
+                    this.popupVisualization.push("sunBurst")
+                    this.popupVisImg = images.filter(img => this.popupVisualization.includes(img.vis));
+                  }
+                }
+                this.popupVisible = true;
+              })
+              .catch(error => {
+                this.popupVisible = true;
+                console.error(error);
+              });
+        }
+        else{
+          this.popupVisible = false;
+        }
       }
+
       this.$store.dispatch('saveIsSelectNode');
       if (!this.pathData[store.state.curExpression]){
         this.pathData[store.state.curExpression] = nodes
@@ -491,20 +625,40 @@ export default {
         const newNodeId = `node${this.nextNodeId}`;
         this.addNode(" ");
         this.addEdge(nodeId, operation, newNodeId);
-        if(operation==="count"||operation==="unique count"){
+        if(operation==="count"){
           const nextNodeId = `node${this.nextNodeId}`;
           store.commit('setSelectedOperator',"view type")
           this.addNode(" ");
           this.addEdge(newNodeId, "view type", nextNodeId);
-          if(store.state.visualType==="pieChart"){
-            this.AddViewType(this.currentNode, "pieChart");
+
+          // 显示从起点到当前节点的路径信息
+          let pathToNode = this.findPath('node0', newNodeId);
+          const nodes = pathToNode.nodes
+          const edges = pathToNode.edges
+          const completePath = this.createCompletePaths(nodes, edges)
+          const operationsArray = completePath
+              .filter(item => item.operator) // 筛选出含有 'operator' 键的对象
+              .map(item => item.operator); // 提取这些对象的 'operator' 键的值
+          const groupNum = operationsArray.filter(item => item === "group_by").length;
+          const flattenNum = operationsArray.filter(item => item === "flatten").length;
+          // 计算group_by和flatten的数量差
+          const diff = groupNum - flattenNum
+          if (diff === 1){
+            if(store.state.visualType==="pieChart"){
+              store.commit('setSelectedViewType',"pieChart")
+              this.AddViewType(this.currentNode, "pieChart");
+            }
+           else{
+              store.commit('setSelectedViewType',"barChart")
+              this.AddViewType(this.currentNode, "barChart");
+            }
           }
-          else{
-            store.commit('setSelectedViewType',"barChart")
-            this.AddViewType(this.currentNode, "barChart");
+          else if (diff > 1){
+            store.commit('setSelectedViewType',"sunBurst")
+            this.AddViewType(this.currentNode, "sunBurst");
           }
         }
-        // else if(operation==="seq view"){
+        // else if(operation==="group by"){
         //   const nextNodeId = `node${this.nextNodeId}`;
         //   store.commit('setSelectedOperator',"view type")
         //   this.addNode(" ");
@@ -535,10 +689,6 @@ export default {
 
     // 在数据节点中加入参数文字
     updateNodeWithSquare(nodeId, text) {
-      const container = document.getElementsByClassName('grid-item block3')[0]
-      const containerRect = container.getBoundingClientRect();
-      const containerWidth = containerRect.width;
-      const containerHeight = containerRect.height;
       const nodeElem = d3.select(`#${nodeId}`);
       const node = this.graph.node(nodeId);
       const existingSquares = nodeElem.selectAll('rect');
@@ -636,12 +786,6 @@ export default {
       xPosition = -rectWidth/2;
       yPosition = -rectHeight/2;
       const newSquare = nodeElem.append('g').attr('class','view_type');
-      // newSquare.append('rect')
-      //     .attr('x', xPosition)
-      //     .attr('y', yPosition)
-      //     .attr('width', rectWidth)
-      //     .attr('height', rectHeight)
-      //     .style('fill', '#EEB422');
       // 添加有限长度的文字
       const maxTextLength = 8; // 最大文本长度
       let displayText = text.length > maxTextLength ? text.substring(0, maxTextLength) + '...' : text;
@@ -709,6 +853,7 @@ export default {
             .remove()
       })
       this.updateGraph();
+      this.popupVisible = false
     },
     // 获取节点上的参数信息
     getTextsInfo(nodeId) {

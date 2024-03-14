@@ -9,43 +9,44 @@
         :show-file-list="false"
         :before-upload="beforeUpload"
     >
-      <el-button slot="trigger" size="small">Dataset</el-button>
-      <el-button @click.stop="executeCode" size="small">Execute code</el-button>
+      <el-button slot="trigger" size="small" style="position:relative;width: 100%;top: 5px">Data Source</el-button>
+<!--      <el-button @click.stop="executeCode" size="small">Execute code</el-button>-->
     </el-upload>
   </div>
-  <div class="codeExecutionArea">
-    <el-input
-        type="textarea"
-        v-model="codeInput"
-        placeholder="请输入要执行的代码"
-        :rows="5">
-    </el-input>
-    <el-select v-model="selectedOption" @change="handleSelectChange"
-               size="small"
-               style="margin: 2%;width: 140px;"
-               placeholder="Select visualization">
-      <el-option
-          v-for="item in visualTypes"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-          :disabled="isOptionDisabled(item.value)">
-      </el-option>
-    </el-select>
-    <!-- 时间范围选择器 -->
-    <div class="timePicker">
-      <el-date-picker
-          v-model="dateTimeRange"
-          type="datetimerange"
-          size="small"
-          style="width: 92%"
-          start-placeholder="Start Time"
-          end-placeholder="End Time"
-          range-separator="-"
-          value-format="YYYY-MM-DD HH:mm:ss"
-      />
-    </div>
-  </div>
+<!--  <div class="codeExecutionArea">-->
+<!--    <el-input-->
+<!--        type="textarea"-->
+<!--        v-model="codeInput"-->
+<!--        placeholder="请输入要执行的代码"-->
+<!--        :rows="5">-->
+<!--    </el-input>-->
+
+<!--    <el-select v-model="selectedOption" @change="handleSelectChange"-->
+<!--               size="small"-->
+<!--               style="margin: 2%;width: 140px;"-->
+<!--               placeholder="Select visualization">-->
+<!--      <el-option-->
+<!--          v-for="item in visualTypes"-->
+<!--          :key="item.value"-->
+<!--          :label="item.label"-->
+<!--          :value="item.value"-->
+<!--          :disabled="isOptionDisabled(item.value)">-->
+<!--      </el-option>-->
+<!--    </el-select>-->
+<!--     时间范围选择器 -->
+<!--    <div class="timePicker">-->
+<!--      <el-date-picker-->
+<!--          v-model="dateTimeRange"-->
+<!--          type="datetimerange"-->
+<!--          size="small"-->
+<!--          style="width: 92%"-->
+<!--          start-placeholder="Start Time"-->
+<!--          end-placeholder="End Time"-->
+<!--          range-separator="-"-->
+<!--          value-format="YYYY-MM-DD HH:mm:ss"-->
+<!--      />-->
+<!--    </div>-->
+<!--  </div>-->
   <div class="history">
     <el-tabs v-model="activeTab" @tab-click="handleTabClick" type="card" stretch="stretch">
       <!-- 历史查询面板 -->
@@ -126,7 +127,8 @@ export default {
       curExpression: state => state.curExpression,
       isSelectNode: state=>state.isSelectNode,
       selectedViewType: state => state.selectedViewType,
-      isSelectedViewType: state => state.isSelectedViewType
+      isSelectedViewType: state => state.isSelectedViewType,
+      dateRange: state => state.dateRange
     }),
     filteredHistory() {
       if (!this.searchText) {
@@ -163,13 +165,13 @@ export default {
         this.executeCode()
       }
     },
-    dateTimeRange(newValue, oldValue) {
-      if(newValue){
-        this.$store.dispatch('saveDateRange', this.dateTimeRange);
-      }
-      else{
-        this.$store.dispatch('saveDateRange', []);
-      }
+    dateRange(newValue, oldValue) {
+      // if(newValue){
+      //   this.$store.dispatch('saveDateRange', this.dateTimeRange);
+      // }
+      // else{
+      //   this.$store.dispatch('saveDateRange', []);
+      // }
       this.executeCode()
     }
   },
@@ -210,29 +212,30 @@ export default {
       this.$store.dispatch('saveSelectedSeq', Object.values(item));
     },
 
-    handleSelectChange(value) {
-      this.$store.dispatch('saveVisualType', value);
-      this.$store.dispatch('saveIsSelectVisualType');
-    },
-
-    isOptionDisabled(optionValue) {
-      let regex = /\.(\w+)\(/g;
-      let operations = [];
-      let match;
-      while ((match = regex.exec(this.codeInput)) !== null) {
-        operations.push(match[1]);
-      }
-      let lastOperation = operations[operations.length - 1]
-      if(this.extractViewType(this.codeInput)){
-        lastOperation = operations[operations.length - 2]
-      }
-      if (lastOperation==="seq_view") {
-        return (optionValue !== 'timeLine' && optionValue !== 'Sankey' && optionValue !== 'Heatmap')
-      }
-      if (["count","unique_count"].includes(lastOperation)) {
-        return (optionValue !== 'barChart' && optionValue !== 'pieChart')
-      }
-    },
+    // handleSelectChange(value) {
+    //   this.$store.dispatch('saveVisualType', value);
+    //   this.$store.dispatch('saveIsSelectVisualType');
+    //   this.selectedOption = ""
+    // },
+    //
+    // isOptionDisabled(optionValue) {
+    //   let regex = /\.(\w+)\(/g;
+    //   let operations = [];
+    //   let match;
+    //   while ((match = regex.exec(this.codeInput)) !== null) {
+    //     operations.push(match[1]);
+    //   }
+    //   let lastOperation = operations[operations.length - 1]
+    //   if(this.extractViewType(this.codeInput)){
+    //     lastOperation = operations[operations.length - 2]
+    //   }
+    //   if (lastOperation==="seq_view") {
+    //     return (optionValue !== 'timeLine' && optionValue !== 'Sankey' && optionValue !== 'Heatmap')
+    //   }
+    //   if (["count","unique_count"].includes(lastOperation)) {
+    //     return (optionValue !== 'barChart' && optionValue !== 'pieChart')
+    //   }
+    // },
 
     // 上传之前判断文件格式
     beforeUpload(file){
@@ -271,9 +274,9 @@ export default {
     executeCode() {
       let startTime = ""
       let endTime = ""
-      if (this.dateTimeRange&&(this.dateTimeRange.length === 2)) {
-          startTime  = this.dateTimeRange[0];
-          endTime = this.dateTimeRange[1];
+      if (this.dateRange&&(this.dateRange.length === 2)) {
+          startTime  = this.dateRange[0];
+          endTime = this.dateRange[1];
       }
       if(this.extractSeqViewContent(this.codeInput)){
         const seqEvent = this.extractSeqViewContent(this.codeInput)
@@ -293,6 +296,15 @@ export default {
             this.$store.dispatch('saveCurExpression',this.codeInput);
             this.responseData = response.data;
             this.operation = this.responseData["operation"]
+
+            // console.log("返回的数据",this.responseData)
+
+            if(!response.data){
+              const codeIndex = this.history.indexOf(this.codeInput);
+              if (codeIndex !== -1) {
+                this.history.splice(codeIndex, 1);
+              }
+            }
 
             if (this.operation === "original") {
               this.$store.dispatch('saveOriginalTableData', { key: this.codeInput, value: this.responseData['result'] });

@@ -1,6 +1,6 @@
 .button-container {
 	position: absolute;
-	z-index: 9999;
+	z-index: 1;
 	background: #eeeeee;
 	left: 3px;
 	right: 3px;
@@ -72,7 +72,7 @@
 	background-color: #fff;
 	cursor: pointer;
 	outline: none;
-	width: 7vw;
+	width: 6vw;
 	height: 3vh;
 }
 
@@ -140,6 +140,26 @@
 }
 
 #close-selection{
+	font-size: 70%;
+	height: 3vh;
+}
+
+#set1-selection{
+	font-size: 70%;
+	height: 3vh;
+}
+
+#set2-selection{
+	font-size: 70%;
+	height: 3vh;
+}
+
+#set1-close{
+	font-size: 70%;
+	height: 3vh;
+}
+
+#set2-close{
 	font-size: 70%;
 	height: 3vh;
 }

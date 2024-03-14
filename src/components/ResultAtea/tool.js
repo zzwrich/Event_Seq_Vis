@@ -171,44 +171,6 @@ export function convertToTreeData(data,seqView) {
     return root;
 }
 // 筛选事件的函数
-export function filterEvents(data, startTime, endTime, event1, event2, seqView) {
-    let filteredEventsByUser = {};
-    let time_key
-    Object.keys(data).forEach(username => {
-        const keys = Object.keys(data[username]);
-        for(let i = 0; i < keys.length; i++) {
-            if(keys[i].includes("时间")){
-                time_key = keys[i]
-            }
-        }
-        // 对每个用户初始化一个空列表来存储事件对
-        filteredEventsByUser[username] = [];
-        const times = data[username][time_key]
-        const events = data[username][seqView];
-        for (let i = 0; i < events.length; i++) {
-            for (let j = i+1; j < events.length; j++) {
-                const timeDiff = (Date.parse(times[j]) - Date.parse(times[i])) / (1000 * 60); // 将时间差转换为分钟
-                // 检查时间差是否在指定范围内
-                const isTimeInRange = Math.abs(timeDiff)<= endTime
-                if (isTimeInRange) {
-                    if (!event1 && !event2) {
-                        // 如果没有指定事件类型，直接添加
-                        filteredEventsByUser[username].push({ event1: i, event2: j });
-                    } else if ((events[i] === event1 && events[j] === event2) || (events[i] === event2 && events[j] === event1)) {
-                        if ((startTime >= 0 || isNaN(startTime)) && (events[i] === event1 && events[j] === event2)) {
-                            // 正时间范围：事件2 在事件1 之后
-                            filteredEventsByUser[username].push({ event1: i, event2: j });
-                        } else if (startTime < 0) {
-                            // 负时间范围：事件2 在事件1 之前或之后都可
-                            filteredEventsByUser[username].push({ event1: i, event2: j });
-                        }
-                    }
-                }
-            }
-        }
-    });
-    return filteredEventsByUser;
-}
 
 export function getRelatedNodes(currentNode, links) {
     const relatedNodes = [];
@@ -247,7 +209,7 @@ export function estimateSankeySize(nodes, nodeSpacing) {
         .filter(node => node.name !== "unknown")
         .map(node => {
         const numbers = node.name.split('*').map(str => parseInt(str, 10));
-        return numbers[numbers.length - 1];
+        return numbers[1];
     }));
 
     if(nodes.some(node => node.name === "unknown")){
@@ -260,100 +222,6 @@ export function estimateSankeySize(nodes, nodeSpacing) {
     return  maxDepth * nodeSpacing ;
 }
 
-// 检查一个字符串是否为有效的时间格式
-function findTimeKey(data) {
-    // 遍历对象的每个键值对
-    for (const [key] of Object.entries(data)) {
-        // 尝试解析日期时间字符串
-        if (typeof data[key][0] === 'string' && data[key][0].includes('GMT')){
-            return key;
-        }
-    }
-    // 如果没有找到符合条件的键，返回null
-    return null;
-}
-
-// 给数据添加层级信息
-export function addHierarchyInfo(data, seqView) {
-    // 创建一个新的对象来存储带有层级信息的数据
-    let newData = {};
-    const events = data[seqView];
-    // 为每个事件添加层级信息，并将新数据存储在新的对象中
-    newData = {
-        ...data,  // 复制原始数据的其他属性
-        [seqView]: events.map((event, index) => `${event} ${index}`)
-    };
-    return newData;
-}
-
-//桑基图数据
-export function processSankeyData(data, seqView) {
-    const nodes = [];
-    const links = [];
-    const events = data[seqView];
-
-    const timeKey = findTimeKey(data);
-
-    // 如果事件只有一个元素，直接添加节点
-    if (events.length === 1) {
-        let data_by_key = {}
-        let timeValue
-        for (let key in data) {
-            // 将每个键对应的值存储在字典中
-            if (key === seqView) {
-                data_by_key[key] = data[key][0];
-            }
-            if (key === timeKey) {
-                timeValue = data[key][0];
-            }
-        }
-
-        // 查找或添加节点
-        const sourceNode = nodes.find(node => node.name === events[0]) || { name:events[0],data: data_by_key,time:timeValue};
-        const targetNode = nodes.find(node => node.name === "unknown") || { name: "unknown",data:{},time:"" };
-        if (!nodes.find(node => node.name === sourceNode.name)) {
-            nodes.push(sourceNode);
-        }
-        if (!nodes.find(node => node.name === targetNode.name)) {
-            nodes.push(targetNode);
-        }
-        links.push({ head: { name: "head" }, tail: { name: "tail" }, source: sourceNode, target: targetNode, value: 1 });
-    } else {
-        // 遍历事件，构建节点和链接
-        for (let i = 0; i < events.length - 1; i++) {
-            const source = events[i];
-            const target = events[i + 1];
-            // 初始化字典
-            let source_data_by_key = {}
-            let target_data_by_key = {}
-            let sourceTime,targetTime
-            for (const key in data) {
-                // 将每个键对应的值存储在字典中
-                if (key === seqView) {
-                    source_data_by_key[key] = data[key][i];
-                    target_data_by_key[key] = data[key][i + 1];
-                }
-                if (key === timeKey) {
-                    sourceTime = data[key][i];
-                    targetTime = data[key][i + 1];
-                }
-            }
-
-            // 查找或添加节点
-            const sourceNode = nodes.find(node => node.name === source) || { name: source,data:source_data_by_key,time: sourceTime };
-            const targetNode = nodes.find(node => node.name === target) || { name: target,data:target_data_by_key,time: targetTime };
-            if (!nodes.find(node => node.name === sourceNode.name)) {
-                nodes.push(sourceNode);
-            }
-            if (!nodes.find(node => node.name === targetNode.name)) {
-                nodes.push(targetNode);
-            }
-            // 添加链接
-            links.push({ head: { name: "" }, tail: { name: "" }, source: sourceNode, target: targetNode, value: 1 });
-        }
-    }
-    return { nodes, links };
-}
 
 export function createSunburstData(data, seqView) {
     if (data[seqView]) {
@@ -600,7 +468,6 @@ export function fillData(originalData, newData) {
 export function createNodes(containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove){
     let circleSpacing = sankeyNodesData[1].x1- sankeyNodesData[0].x1
 
-    console.log("数据",sankeyNodesData)
     const partition = (newData) => {
         return d3.partition().size([2 * Math.PI, newData.height + 1])(newData)
     }
@@ -680,8 +547,6 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
             }
 
             else if(alignment==="全局对齐"){
-                // console.log("移动距离",userMove)
-                // console.log("索引",index)
                 const newx0 = userMove[index]*circleSpacing+minx0
                 const newx1 = userMove[index]*circleSpacing+minx1
                 centerX = (newx0 + newx1) / 2
@@ -744,6 +609,7 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
                     .attr('circleName', className)
                     .attr('cx', centerX)
                     .attr('cy', centerY)
+                    .attr('radius', radius)
                     .style('cursor','pointer')
                     .attr("nodeText", nodeData.name)
                     .attr('transform', `translate(${centerX}, ${centerY})`)
@@ -808,4 +674,57 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
 
         }
     });
+}
+
+
+export function hierarchyData(data) {
+    function transform(node) {
+        // 如果节点是一个数值，表示我们到达了叶子节点，返回其值
+        if (typeof node === 'number') {
+            return { value: node };
+        }
+
+        // 否则，遍历对象的键值对，构建children数组
+        const children = Object.keys(node).map(key => {
+            return {
+                name: key,
+                ...transform(node[key]) // 递归转换当前节点
+            };
+        });
+
+        return { children };
+    }
+
+    // 开始转换，假设最顶层的"name"是"root"
+    return {
+        name: "root",
+        ...transform(data)
+    };
+}
+
+
+export function collectNamesByDepth(node) {
+    const namesByDepth = []; // 使用列表存储每个层级的名称列表
+
+    // 递归函数来遍历节点
+    function traverse(node, depth) {
+        // 确保该深度的列表已经初始化
+        if (!namesByDepth[depth]) {
+            namesByDepth[depth] = [];
+        }
+        if (node.name) { // 确保节点有name属性
+            if(!namesByDepth[depth].includes(node.name)){
+                namesByDepth[depth].push(node.name);
+            }
+        }
+
+        // 遍历子节点
+        if (node.children) {
+            node.children.forEach(child => traverse(child, depth + 1));
+        }
+    }
+
+    traverse(node, 0); // 从根节点开始遍历，根节点层级为0
+
+    return namesByDepth;
 }

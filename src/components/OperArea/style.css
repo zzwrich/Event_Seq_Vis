@@ -1,14 +1,21 @@
 .myLine {
 	position: absolute;
 	width: 100%;
-	top: 59%;
+	top: 52%;
 	height: 2px;
-	background-image: linear-gradient(to right, #D3D3D3 45%, rgba(255,255,255,0) 0%); /* 35%设置虚线点x轴上的长度 */
+	background-image: linear-gradient(to right, #D3D3D3 55%, rgba(255,255,255,0) 0%); /* 45%设置虚线点x轴上的长度 */
 	background-position: bottom; /* top配置上边框位置的虚线 */
 	background-size: 6px 2px; /* 第一个参数设置虚线点的间距；第二个参数设置虚线点y轴上的长度 */
 	background-repeat: repeat-x;
 	z-index: 0
 }
+
+.splitLine {
+	border-top: 1px solid #ccc;
+	margin-top: 6px;
+	margin-bottom: 30px;
+}
+
 
 .data {
 	position: absolute;
@@ -22,8 +29,126 @@
 .view {
 	position: absolute;
 	left: 10px;
-	top: 61%;
+	top: 54%;
 	font-size: 80%;
 	color: #666666;
 	z-index: 0
+}
+
+.popupList {
+	margin-top: 0;
+	list-style: none;
+	padding: 0;
+}
+
+.popupItem  {
+	padding: 5px 5px 0 5px;
+	border-bottom: 1px solid #ddd;
+	cursor: pointer;
+	transition: background-color 0.3s;
+	color: #808080;
+	font-size: 2%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.popupItem:hover {
+	background-color: #e0e0e0;
+}
+
+.chooseBtn {
+	margin-top: 0;
+	margin-right: 0;
+}
+
+.popup{
+	position: absolute;
+	width:25%;
+	height: 65%;
+	background-color: #f9f9f9;
+	border: 2px solid #E9E9E9;
+	border-radius: 5px;
+	padding: 20px;
+	z-index: 1;
+	overflow-y: auto;
+	transition: all 0.1s ease;
+}
+
+.newPopup{
+	position: absolute;
+	width:25%;
+	height: 65%;
+	background-color: #f9f9f9;
+	border: 2px solid #E9E9E9;
+	border-radius: 5px;
+	padding: 20px;
+	z-index: 2;
+	overflow-y: auto;
+	transition: all 0.1s ease;
+}
+
+.elOption .el-select-dropdown__wrap {
+	max-height: 120px !important;
+}
+
+.is-selected{
+	background-color: #e0e0e0;
+}
+
+.attrList{
+	list-style: none;
+	padding: 0;
+}
+
+.attrList li {
+	margin: 5px 5px 0 5px;
+	padding: 10px;
+	border: 1px solid #dcdfe6;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.hoverable-image {
+	transition: filter 0.2s ease;
+}
+
+.hoverable-image:hover {
+	cursor: pointer;
+	filter: brightness(150%) hue-rotate(180deg); /* 悬浮变色 */
+}
+
+.operation-buttons {
+	width: 100%;
+	margin-top: -10px;
+	margin-left: -12px;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	justify-items: end;
+}
+
+.operation-button {
+	text-align: center; /* 确保文字居中 */
+	width: 5.5vw;
+	margin-bottom: 8px;
+	margin-right: 10px;
+}
+
+.content-block{
+	margin-top: -20px;
+}
+
+.searchBox{
+	font-size: 80% !important;
+	height: 25px;
+}
+
+li:hover {
+	background-color: #f0f0f0; /* 悬浮时的背景颜色 */
+	cursor: pointer; /* 鼠标悬浮时显示为指针形状 */
+}
+
+check:hover {
+	filter: brightness(150%) hue-rotate(180deg); /* 悬浮变色 */
 }

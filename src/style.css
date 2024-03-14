@@ -19,7 +19,7 @@
 }
 
 .block3 {
-	grid-row: 2 / span 2;
+	grid-row: 1 / span 3;
 	grid-column: 3 / span 8;
 	position: relative;
 	/*border: 2px solid #D3D3D3;*/
@@ -35,11 +35,11 @@
 	position: relative;
 }
 
-.block5 {
-	/*border: 2px solid #D3D3D3;*/
-	border-radius: 5px;
-	grid-row: 1 / span 1;
-	grid-column: 3 / span 8;
-	z-index: 0;
-	background: white;
-}
+/*.block5 {*/
+/*	!*border: 2px solid #D3D3D3;*!*/
+/*	border-radius: 5px;*/
+/*	grid-row: 1 / span 1;*/
+/*	grid-column: 3 / span 8;*/
+/*	z-index: 0;*/
+/*	background: white;*/
+/*}*/

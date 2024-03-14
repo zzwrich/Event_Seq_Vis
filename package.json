@@ -20,6 +20,7 @@
     "dagre-d3": "^0.6.4",
     "echarts": "^5.4.3",
     "element-plus": "^2.4.2",
+    "sweetalert2": "^11.10.6",
     "vue": "^3.3.4",
     "vue-draggable-next": "^2.2.1",
     "vuedraggable": "^2.24.3",

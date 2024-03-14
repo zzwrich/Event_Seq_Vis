@@ -33,6 +33,7 @@ const store = createStore({
             isSelectHistory: "",
             sheetName: "",
             sheetData: [],
+            filterParam: []
         };
     },
     mutations: {
@@ -137,6 +138,9 @@ const store = createStore({
         setSheetData(state, option) {
             state.sheetData = option;
         },
+        setFilterParam(state, option) {
+            state.filterParam = option;
+        },
     },
     actions: {
         saveResponseData({ commit }, data) {
@@ -237,6 +241,9 @@ const store = createStore({
         },
         saveSheetData({ commit }, option) {
             commit('setSheetData',option);
+        },
+        saveFilterParam({ commit }, option) {
+            commit('setFilterParam',option);
         },
     }
 });
