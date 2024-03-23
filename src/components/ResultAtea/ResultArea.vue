@@ -92,6 +92,7 @@ watch(() => store.state.responseData, (newValue) => {
     // 将字符串信息绑定到div的自定义属性上
     myDiv.setAttribute("codeContext", store.state.curExpression);
     myDiv.setAttribute("visualType", visualType);
+    myDiv.setAttribute("nodeId", store.state.nodeId);
     // 绑定时间属性
     if((store.state.dateRange.length !== 0)){
       myDiv.setAttribute("startTime", store.state.dateRange[0]);

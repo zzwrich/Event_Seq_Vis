@@ -1,10 +1,10 @@
 <template>
   <div class="popup" v-if="visible" :style="{ left: left + 'px', top: top + 'px'}">
-    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup"></Close>
+    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
     <!-- 第一个内容块 -->
     <div style="height: 100%;">
       <div class="content-block">
-        <h4>Opera</h4>
+        <h4>Operation</h4>
         <div class="operation-buttons">
           <el-button v-for="(item, index) in operationList" :key="index" @click="chooseOperation(index)" class="operation-button">{{ item }}</el-button>
         </div>
@@ -13,7 +13,7 @@
       <div class="splitLine"></div>
       <!-- 第二个内容块 -->
       <div class="content-block">
-        <h4>Vis</h4>
+        <h4>Visualization</h4>
         <div style="margin-top: -16px">
           <img v-for="(img, index) in imgList" :key="index" :src="img.url" alt="Image" :style=img.style  class="hoverable-image" @click="chooseVisual(img.vis)"/>
         </div>
@@ -21,13 +21,13 @@
     </div>
   </div>
   <div v-if="newPopupVisible" class="newPopup" :style="{ left: left + 'px', top: top + 'px'}">
-    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closeNewPopup"></Close>
+    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closeNewPopup" class="myIcon"></Close>
     <div style="margin-top: 10px;" v-if="displayMode === 'filter'">
       <el-date-picker
           v-model="dateTimeRange"
           type="datetimerange"
           size="small"
-          style="width: 87%;margin-left: 3%;margin-bottom: 5px;z-index: 9999"
+          style="width: 90%;margin-left: 2px;margin-bottom: 5px;z-index: 9999"
           start-placeholder="Start Time"
           end-placeholder="End Time"
           range-separator="-"
@@ -38,7 +38,7 @@
           v-model="selectedLabel"
           placeholder="Select Attribute"
           @change="handleLabelChange"
-          style="width: 86%; border: none;"
+          style="width: 88%; border: none;background: none;margin-left: -2px"
           popper-class="elOption"
           :popper-append-to-body="true"
       >
@@ -50,7 +50,7 @@
         </el-option>
       </el-select>
       <check style="width: 18px;height: 18px;cursor: pointer;color: #606266;position: absolute;margin-top: 8px;margin-left: 5px"
-             @click="checkFilterAttr"></check>
+             @click="checkFilterAttr" class="myIcon"></check>
       <!-- 根据所选标签显示的选项列表 -->
       <h4 style="margin-top: 10px;margin-bottom: 5px">Values</h4>
       <el-input v-model="searchText" placeholder="Search" prefix-icon="Search" class="searchBox"></el-input>
@@ -60,7 +60,7 @@
               v-for="(option, index) in filteredAttributeList"
               :key="index"
               style="padding: 5px 5px 0 5px;transition: background-color 0.3s;color: #808080;font-size: 2%;
-                      display: flex;align-items: center;border: none"
+                      display: flex;align-items: center;border: none;"
               :class="{ 'is-selected': selectedCheckboxes.includes(option) }"
               @click="chooseAttr(option)">
             {{ option }}
@@ -97,7 +97,6 @@
 <script>
 import {Close} from "@element-plus/icons-vue";
 import store from "@/store/index.js";
-import {mapState} from "vuex";
 
 export default {
   components: {Close},
@@ -163,7 +162,7 @@ export default {
     },
     chooseOperation(index) {
       let operation = this.operationList[index];
-      if(operation!=="count"){
+      if((operation!=="count")&&(operation!=="flatten")){
         this.newPopupVisible = true;
       }
       store.dispatch('saveIsDrag');

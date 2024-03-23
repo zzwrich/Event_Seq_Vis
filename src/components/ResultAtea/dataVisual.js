@@ -20,7 +20,13 @@ import {
     fillData,
     changeGlobalMouseover,
     createNodes,
-    hierarchyData, collectNamesByDepth
+    createHierarchyData,
+    collectNamesByDepth,
+    flatten,
+    extractInfoBySeqView,
+    groupData,
+    changeInteractive,
+    getRulesForInteractive,
 } from './tool.js'
 import axios from "axios";
 
@@ -57,16 +63,23 @@ export default {
                 }
             }
         }
-        if(operation === "group_by"){
+        if((operation === "group_by")||(operation === "flatten")){
             const codeContext = store.state.curExpression
-            const match = codeContext.match(/group_by\(\"([^"]+)\"\)/);
-            const parameter = match[1];
+            const regex = /group_by\("([^"]+)"\)/g; // 使用全局标志`g`进行全文搜索
+            const matches = codeContext.matchAll(regex);
+            const parameters = [];
+            for (const match of matches) {
+                parameters.push(match[1]);
+            }
             const [dataKey] = codeContext.split(".");
             const originalData = store.state.originalTableData[dataKey]
             const allKeys = Object.keys(originalData)
-            const seqView = allKeys.find(function(element) {
-                return element !== parameter;
+            let seqView = allKeys.find(function(element) {
+                return (!(parameters.includes(element))&&(!element.includes("时间")));
             });
+            if(seqView===undefined){
+                seqView = allKeys[0]
+            }
 
             if(store.state.curExpression.includes("view_type")){
                 if(visualType==null || visualType==="timeLine"){
@@ -102,9 +115,6 @@ export default {
                 }
                 // else if(visualType==="Sankey"){
                 //     this.createAggTimeLine(containerId, data, seqView);
-                // }
-                // else if(visualType==="hierarchy"){
-                //     this.createHierarchy(containerId, convertToTreeData(data,seqView));
                 // }
                 // else if(visualType==="Heatmap"){
                 //     this.createHeatmap(containerId, data, seqView);
@@ -386,6 +396,7 @@ export default {
                 const fontSize = fontSizeScale(containerWidth); // 根据宽度计算字体大小
                 return fontSize + 'px';
             });
+
         outerKeys.forEach((key, i) => {
             chartGroup.selectAll('.oldBarChart')
                 .data(Object.keys(data[key]))
@@ -857,7 +868,7 @@ export default {
         let legendItemWidth = 0.015*containerWidth; // 图例项的宽度
         let legendItemMargin = 1.8*legendItemWidth; // 图例项的间距
 
-        const sunburstData = hierarchyData(data[""])
+        const sunburstData = createHierarchyData(data[""])
 
         const namesByDepth = collectNamesByDepth(sunburstData);
 
@@ -958,9 +969,8 @@ export default {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
-
             })
-            .style('fill', d => colorScale[d.depth](d.data.name)); // 假设每个节点数据中有颜色属性
+            .style('fill', d => colorScale[d.depth](d.data.name));
 
         // 创建 ResizeObserver 实例
         const resizeObserver = new ResizeObserver(entries => {
@@ -973,7 +983,9 @@ export default {
         updateSunburst();
     },
 
-    createTimeLine(containerId, data, seqView, allAttributes, isAggregate) {
+    createTimeLine(containerId, originData, seqView, allAttributes, isAggregate) {
+        const data = flatten(originData)
+        let align_data = data
         // 检查数据的有效性
         if (!data || Object.keys(data).length === 0) {
             return;
@@ -1046,14 +1058,37 @@ export default {
         });
 
         // 在容器中添加按钮
+        // 聚合下拉框
+        const aggButton = document.createElement('button');
+        aggButton.innerText = 'Aggregate';
+        aggButton.id = 'aggregate';
+        aggButton.className = 'el-button';
+
+        // 创建下拉框
+        const aggBox = document.createElement('select');
+        aggBox.id = 'agg-selection';
+        aggBox.className = 'el-select';
+        // 添加下拉选项
+        const defaultAggOption = document.createElement('option');
+        defaultAggOption.innerText = 'Aggregate'; // 这里设置您想要显示的默认文字
+        defaultAggOption.disabled = true; // 禁止选择这个选项
+        defaultAggOption.selected = true; // 默认选中这个选项
+        const aggOption1 = document.createElement('option');
+        aggOption1.value = '聚合';
+        aggOption1.innerText = 'true';
+        const aggOption2 = document.createElement('option');
+        aggOption2.value = '不聚合';
+        aggOption2.innerText = 'false';
+
+        // 将选项添加到下拉框中
+        aggBox.appendChild(defaultAggOption);
+        aggBox.appendChild(aggOption1);
+        aggBox.appendChild(aggOption2);
+
         const startButton = document.createElement('button');
         startButton.innerText = 'Create brush';
         startButton.id = 'start-selection';
         startButton.className = 'el-button';
-        // const closeButton = document.createElement('button');
-        // closeButton.innerText = 'Destroy brush';
-        // closeButton.id = 'close-selection';
-        // closeButton.className = 'el-button';
         // 创建一个勾选框
         const queryBox = document.createElement('input');
         queryBox.type = 'checkbox';
@@ -1090,34 +1125,26 @@ export default {
         toLabel.innerText = '-';
         toLabel.className = 'range-label';
 
-        // 创建事件1输入框
-        const Event1Input = document.createElement('input');
-        Event1Input.id = 'event1-input';
-        Event1Input.className = 'my-input';
-        Event1Input.placeholder = 'eventSet1';
-        // 创建事件2输入框
-        const Event2Input = document.createElement('input');
-        Event2Input.id = 'event2-input';
-        Event2Input.className = 'my-input';
-        Event2Input.placeholder = 'eventSet2';
+        // // 创建事件1输入框
+        // const Event1Input = document.createElement('input');
+        // Event1Input.id = 'event1-input';
+        // Event1Input.className = 'my-input';
+        // Event1Input.placeholder = 'eventSet1';
+        // // 创建事件2输入框
+        // const Event2Input = document.createElement('input');
+        // Event2Input.id = 'event2-input';
+        // Event2Input.className = 'my-input';
+        // Event2Input.placeholder = 'eventSet2';
 
 
         const set1Button = document.createElement('button');
-        set1Button.innerText = 'Get eventSet1';
+        set1Button.innerText = 'Get eventSet';
         set1Button.id = 'set1-selection';
         set1Button.className = 'el-button';
-        // const set1CloseButton = document.createElement('button');
-        // set1CloseButton.innerText = 'Destroy eventSet1';
-        // set1CloseButton.id = 'set1-close';
-        // set1CloseButton.className = 'el-button';
-        const set2Button = document.createElement('button');
-        set2Button.innerText = 'Get eventSet2';
-        set2Button.id = 'set2-selection';
-        set2Button.className = 'el-button';
-        // const set2CloseButton = document.createElement('button');
-        // set2CloseButton.innerText = 'Destroy eventSet2';
-        // set2CloseButton.id = 'set2-close';
-        // set2CloseButton.className = 'el-button';
+        // const set2Button = document.createElement('button');
+        // set2Button.innerText = 'Get eventSet2';
+        // set2Button.id = 'set2-selection';
+        // set2Button.className = 'el-button';
 
         const checkButton = document.createElement('button');
         checkButton.innerText = 'Check';
@@ -1137,19 +1164,17 @@ export default {
         // 将元素添加到新的包装容器中
         controlsContainer.appendChild(selectBox);
         controlsContainer.appendChild(selectAttribute);
+        controlsContainer.appendChild(aggBox);
         controlsContainer.appendChild(label);
         controlsContainer.appendChild(startButton);
-        // controlsContainer.appendChild(closeButton);
         controlsContainer.appendChild(inputContainer);
         inputContainer.appendChild(startTimeInput);
         inputContainer.appendChild(toLabel);
         inputContainer.appendChild(endTimeInput);
-        inputContainer.appendChild(Event1Input);
-        inputContainer.appendChild(Event2Input);
+        // inputContainer.appendChild(Event1Input);
+        // inputContainer.appendChild(Event2Input);
         inputContainer.appendChild(set1Button);
-        // inputContainer.appendChild(set1CloseButton);
-        inputContainer.appendChild(set2Button);
-        // inputContainer.appendChild(set2CloseButton);
+        // inputContainer.appendChild(set2Button);
         inputContainer.appendChild(checkButton);
         inputContainer.appendChild(resetButton);
         container.appendChild(controlsContainer);
@@ -1216,8 +1241,8 @@ export default {
         }
         // 重置按钮
         resetButton.addEventListener('click', function() {
-            Event1Input.value = ""
-            Event2Input.value = ""
+            // Event1Input.value = ""
+            // Event2Input.value = ""
             const svg = d3.select(".svgContainer"+containerId); // 选择 SVG 容器
             // 移除所有连接线
             svg.selectAll('.event-pairs').remove();
@@ -1226,8 +1251,9 @@ export default {
                 .style('fill', d => colorMap[parseAction(d.data.name.split("*")[0])])
                 .classed('paired-event', false); // 如果使用了特定类名进行高亮显示，移除该类名
         });
+
         //获取事件坐标
-        function getCircleCoordinates(username, index, data) {
+        function getCircleCoordinates(username, index) {
             // 构造对应的选择器
             const selector = `.event-circle[circleName="circle-${username}"]`;
             const circles = d3.selectAll(selector);
@@ -1250,8 +1276,15 @@ export default {
         selectAttribute.addEventListener('change', function() {
             // 获取当前选中的值
             createChart(this.value)
+            selectBox.selectedIndex = 0;
+            aggBox.selectedIndex = 0;
         });
         function createChart(seqView){
+            const allUserData = []
+            Object.keys(data).forEach((username, index) => {
+                allUserData.push(data[username][seqView])
+            })
+
             const colorMap = generateColorMap(data,seqView);
             // 选择要移除的 SVG 元素
             const svgToRemove = d3.select(container).select('.svgContainer'+containerId);
@@ -1259,7 +1292,7 @@ export default {
             svgToRemove.remove();
 
             // 计算 SVG 的宽度
-            let svgWidth = margin.left + (maxLength+1) * (circleRadius * 2 + circleSpacing) + margin.right;
+            let svgWidth = margin.left + (maxLength+3) * (circleRadius * 2 + circleSpacing) + margin.right;
             if (svgWidth < containerWidth){
                 svgWidth = containerWidth
             }
@@ -1276,72 +1309,77 @@ export default {
 
             const seqContainer = svg.append('g')
 
-            // 创建图例
-            const legend = seqContainer.append('g')
-                .attr('class', 'legend')
-                .attr('transform', `translate(15, ${(Object.keys(data).length+1) * (circleRadius * 2.5 + circleSpacing)})`); // 控制图例位置
+            createLegend(data)
 
-            // 添加图例矩形和文字
-            const legendItems = Object.keys(colorMap);
+            function createLegend(data){
+                // 创建图例
+                const legend = seqContainer.append('g')
+                    .attr('class', 'legend')
+                    .attr('transform', `translate(15, ${(Object.keys(data).length+1) * (circleRadius * 2.5 + circleSpacing)})`); // 控制图例位置
 
-            let totalLegendWidth = 0; // 用于存储总宽度
-            let legendY = 0;
-            // 点击图例变色
-            const highlightColor = "#C0C0C0";
-            const highlightCircle = "#eeeeee"; // 高亮颜色，比如灰色
-            legendItems.forEach((item, index) => {
-                const rectSize = circleRadius*2;
-                // 添加图例文字
-                const legendText = legend.append('text').text(item).style('font-size', rectSize/1.5);
-                // 获取图例文本的宽度
-                const legendTextWidth = legendText.node().getBBox().width;
+                // 添加图例矩形和文字
+                const legendItems = Object.keys(colorMap);
 
-                let gap = circleRadius*1.5
-                let legendX = totalLegendWidth;
-                let legendCountInRow = 0;
-                // 总宽度
-                totalLegendWidth += gap+rectSize+legendTextWidth;
-                // 计算一行可以容纳多少个图例
-                const availableLegendCount = Math.floor(svgWidth / totalLegendWidth);
-                // 根据图例数量决定是否换行
-                if (legendCountInRow >= availableLegendCount) {
-                    legendX = 0;
-                    totalLegendWidth = 0;
+                let totalLegendWidth = 0; // 用于存储总宽度
+                let legendY = 0;
+
+                legendItems.forEach((item, index) => {
+                    const rectSize = circleRadius*2;
+                    // 添加图例文字
+                    const legendText = legend.append('text').text(item).style('font-size', rectSize/1.5);
+                    // 获取图例文本的宽度
+                    const legendTextWidth = legendText.node().getBBox().width;
+
+                    let gap = circleRadius*1.5
+                    let legendX = totalLegendWidth;
+                    let legendCountInRow = 0;
+                    // 总宽度
                     totalLegendWidth += gap+rectSize+legendTextWidth;
-                    legendY += rectSize*2;
-                    legendCountInRow = 0;
-                }
-                legendCountInRow++;
-                legendText
-                    .attr('x', legendX+rectSize*1.2+legendTextWidth/2).attr('y', legendY+ rectSize*0.6)
-                    .attr('text-anchor', 'middle').attr('alignment-baseline', 'middle')
-                    .attr('class', 'sankeyLegendText')
-                    .attr('text',item)
-                    .style('fill', colorMap[item]) // 根据操作类型选择颜色
-                    .style('font-weight', 'bold')
-                    .style('cursor', 'pointer') // 设置鼠标悬浮时显示手指样式
-                    .on('click', function() {
-                        event.stopPropagation();
-                        changeGlobalHighlight(item, containerId)
-                    })
-                    .on('mouseover', function() {
-                        changeGlobalMouseover(item, containerId)
-                    })
-                    .on('mouseout', function() {
-                        changeGlobalMouseover(item, containerId)
-                    });
+                    // 计算一行可以容纳多少个图例
+                    const availableLegendCount = Math.floor(svgWidth / totalLegendWidth);
+                    // 根据图例数量决定是否换行
+                    if (legendCountInRow >= availableLegendCount) {
+                        legendX = 0;
+                        totalLegendWidth = 0;
+                        totalLegendWidth += gap+rectSize+legendTextWidth;
+                        legendY += rectSize*2;
+                        legendCountInRow = 0;
+                    }
+                    legendCountInRow++;
+                    legendText
+                        .attr('x', legendX+rectSize*1.2+legendTextWidth/2).attr('y', legendY+ rectSize*0.6)
+                        .attr('text-anchor', 'middle').attr('alignment-baseline', 'middle')
+                        .attr('class', 'sankeyLegendText')
+                        .attr('text',item)
+                        .style('fill', colorMap[item]) // 根据操作类型选择颜色
+                        .style('font-weight', 'bold')
+                        .style('cursor', 'pointer') // 设置鼠标悬浮时显示手指样式
+                        .on('click', function() {
+                            event.stopPropagation();
+                            changeGlobalHighlight(item, containerId)
+                        })
+                        .on('mouseover', function() {
+                            changeGlobalMouseover(item, containerId)
+                        })
+                        .on('mouseout', function() {
+                            changeGlobalMouseover(item, containerId)
+                        });
 
-                // 添加图例矩形
-                legend.append('rect')
-                    .attr('x', legendX)
-                    .attr('y', legendY)
-                    .attr('width', rectSize)
-                    .attr('height', rectSize)
-                    .style('fill', colorMap[item]);
-            });
+                    // 添加图例矩形
+                    legend.append('rect')
+                        .attr('x', legendX)
+                        .attr('y', legendY)
+                        .attr('width', rectSize)
+                        .attr('height', rectSize)
+                        .style('fill', colorMap[item]);
+                });
+            }
 
             // 监听选中的需要高亮的路径信息
             store.watch(() => store.state.globalHighlight, (newValue) => {
+                // 点击图例变色
+                const highlightColor = "#C0C0C0";
+                const highlightCircle = "#eeeeee"; // 高亮颜色，比如灰色
                 const code=container.getAttribute("codeContext")
                 const filterParameters = store.state.filterRules
                 const [dataKey] = code.split(".");
@@ -1356,7 +1394,6 @@ export default {
                     svg.selectAll(".selected-username").classed("selected-username", false);
                     keys.forEach(username => {
                         const name = `username-${username}`;
-                        console.log("name",name)
                         svg.select(`[username="${name}"]`)
                             .classed("selected-username", true); // 添加高亮类
                     });
@@ -1366,6 +1403,7 @@ export default {
                 }
                 //高亮数据项
                 if(Object.keys(filterParameters).includes(foundDataKey)){
+                    console.log("这里")
                     const keys = filterParameters[foundDataKey]
                     const circles = svg.selectAll('.event-circle');
                     circles.style('fill', d => keys.includes(parseAction(d.data.name.split("*")[0])) ? colorMap[parseAction(d.data.name.split("*")[0])] : highlightCircle)
@@ -1376,7 +1414,11 @@ export default {
                         });
                 }
                 else{
+                    console.log("哈哈")
                     svg.selectAll('.event-circle').style('fill', d=>colorMap[parseAction(d.data.name.split("*")[0])]);
+                    svg.selectAll('.event-circle').style("fill", function(d) {
+                        return colorMap[d.data.name.split("*")[0]] ? colorMap[d.data.name.split("*")[0]] : highlightColor
+                    })
                     // 选择所有具有'sankeyLegendText'类的元素
                     svg.selectAll('.sankeyLegendText')
                         .each(function() {
@@ -1441,65 +1483,100 @@ export default {
             }, { deep: true });
 
             const userLocation ={}
-            // 遍历数据，创建事件符号
-            Object.keys(data).forEach((username, index) => {
-                const events = data[username][seqView];
-                const yPos = (index+1) * (circleRadius * 2.5 + circleSpacing); // 控制圆形的垂直位置
-                // 用于估算宽度的用户名
-                const usernameTextforWidth = seqContainer.append('text')
-                    .attr('x', 10) // 控制用户名的水平位置
-                    .attr('y', yPos+circleRadius/2)
-                    .text(username)
-                    .style('fill', 'transparent');
-                // 定义颜色映射比例尺
-                const colorScale = d3.scaleSequential(d3.interpolate('#00FF00', '#FF0000')) // 从绿色插值到红色
-                    .domain([0, maxLength]); // 设定域为 [0, maxLength]
-                // 添加矩形框
-                const usernameRect = seqContainer.append('rect')
-                    .attr('x', 10-usernameTextforWidth.node().getBBox().width*0.1) // 控制矩形框的水平位置，与用户名文本的位置一致
-                    .attr('y', yPos-circleRadius)
-                    .attr('width', usernameTextforWidth.node().getBBox().width*1.2)
-                    .attr('height',  Math.max(20,usernameTextforWidth.node().getBBox().height))
-                    .style('fill',  userColorMap[username])
-                    .style('opacity', 1)
-                    .style('cursor', 'pointer')
+            const aggUserLocation = {}
+            // 桑基图数据
+            // if(isAggregate)
+            // {
+            //
+            // }
+            // else{
+            //
+            // }
+            withoutAgg()
+            function withoutAgg(){
+                // 遍历数据，创建事件符号
+                Object.keys(data).forEach((username, index) => {
+                    const yPos = (index+1) * (circleRadius * 2.5 + circleSpacing); // 控制圆形的垂直位置
+                    // 用于估算宽度的用户名
+                    const usernameTextforWidth = seqContainer.append('text')
+                        .attr('x', 10) // 控制用户名的水平位置
+                        .attr('y', yPos+circleRadius/2)
+                        .text(username)
+                        .style('fill', 'transparent');
+                    // 定义颜色映射比例尺
+                    const colorScale = d3.scaleSequential(d3.interpolate('#00FF00', '#FF0000')) // 从绿色插值到红色
+                        .domain([0, maxLength]); // 设定域为 [0, maxLength]
+                    // 添加矩形框
+                    const usernameRect = seqContainer.append('rect')
+                        // .attr('x', 10-usernameTextforWidth.node().getBBox().width*0.1) // 控制矩形框的水平位置，与用户名文本的位置一致
+                        .attr('x', 12-usernameTextforWidth.node().getBBox().width*0.1) // 控制矩形框的水平位置，与用户名文本的位置一致
+                        .attr('y', yPos-circleRadius-1)
+                        .attr('width', usernameTextforWidth.node().getBBox().width*1.2)
+                        .attr('height',  Math.max(20,usernameTextforWidth.node().getBBox().height))
+                        // .style('fill',  userColorMap[username])
+                        .style('fill',  "none")
+                        .style('opacity', 1)
+                        .style('cursor', 'pointer')
 
-                const usernameText = seqContainer.append('text')
-                    .attr('x', 10) // 控制用户名的水平位置
-                    .attr('y', yPos+circleRadius/2)
-                    .text(username)
-                    .attr("username", `username-${username}`)
-                    .style('fill','#808080')
-                    .style('font-weight', 'bold')
-                    .style('cursor','pointer')
-                    .on('click', function () {
-                        event.stopPropagation(); // 阻止事件传播
-                        const selectedUsername = d3.select(this).text();
-                        changeGlobalHighlight(selectedUsername, containerId)
-                    })
-                    .on('mouseover', function () {
-                        const selectedUsername = d3.select(this).text();
-                        changeGlobalMouseover(selectedUsername,containerId)
-                    })
-                    .on('mouseout', function () {
-                        const selectedUsername = d3.select(this).text();
-                        changeGlobalMouseover(selectedUsername,containerId)
+                    const usernameText = seqContainer.append('text')
+                        .attr('x', 10) // 控制用户名的水平位置
+                        .attr('y', yPos+circleRadius/2)
+                        .text(username.replace(/&/g, " "))
+                        .attr("username", `username-${username}`)
+                        .style('fill','#808080')
+                        .style('font-weight', 'bold')
+                        .style('cursor','pointer')
+                        .on('click', function () {
+                            event.stopPropagation(); // 阻止事件传播
+                            const selectedUsername = d3.select(this).text();
+                            changeGlobalHighlight(selectedUsername, containerId)
+                        })
+                        .on('mouseover', function () {
+                            const selectedUsername = d3.select(this).text();
+                            changeGlobalMouseover(selectedUsername,containerId)
+                        })
+                        .on('mouseout', function () {
+                            const selectedUsername = d3.select(this).text();
+                            changeGlobalMouseover(selectedUsername,containerId)
+                        });
+                    // 获取用户名文本的宽度
+                    usernameTextWidth["username"+containerId] = usernameText.node().getBBox().width;
+                    userLocation[username]= yPos
+                });
+                getSankeyData('http://127.0.0.1:5000/get_timeline_data',data,false)
+            }
+            // 聚合下拉框
+            aggBox.addEventListener('change', function() {
+                seqContainer.selectAll("*").remove();
+                if(this.value==="聚合"){
+                    selectBox.disabled = true;
+                    createLegend(originData)
+                    Object.keys(originData).forEach((username, index) => {
+                        const yPos = (index+1) * (circleRadius * 2.5 + circleSpacing);
+                        const usernameText = seqContainer.append('text')
+                            .attr('x', 10) // 控制用户名的水平位置
+                            .attr('y', yPos+circleRadius/2)
+                            .text(username)
+                            .style('fill','#808080')
+                            .style('font-weight', 'bold');
+                        // 获取用户名文本的宽度
+                        usernameTextWidth["username"+containerId] = usernameText.node().getBBox().width;
+                        aggUserLocation[username]= yPos
                     });
-                // 获取用户名文本的宽度
-                usernameTextWidth["username"+containerId] = usernameText.node().getBBox().width;
-                userLocation[username]= yPos
+
+                    const dataToAgg = extractInfoBySeqView(align_data, seqView);
+                    const hierachyData = groupData(dataToAgg)
+
+                    getSankeyData('http://127.0.0.1:5000/get_agg_timeline_data',hierachyData,true)
+                }
+                else{
+                    selectBox.disabled = false;
+                    createLegend(data)
+                    withoutAgg()
+                }
             });
 
-            // 桑基图数据
-            if(isAggregate)
-            {
-                getSankeyData('http://127.0.0.1:5000/get_agg_timeline_data')
-            }
-            else{
-                getSankeyData('http://127.0.0.1:5000/get_timeline_data')
-            }
-
-            function getSankeyData(url){
+            function getSankeyData(url,data,isAgg){
                 // 选择tooltip并移除
                 d3.select(container)
                     .select(".tooltip")
@@ -1509,6 +1586,7 @@ export default {
                     .then(response => {
                         const nodes = response.data["nodes"]
                         const links = response.data["links"]
+
                         // 构建节点映射，方便后续查找
                         const nodeMap = new Map(nodes.map(node => [node.name, node]));
                         // 填充 links 数组中的 source 和 target 属性
@@ -1526,6 +1604,7 @@ export default {
                         selectBox.addEventListener('change', function() {
                             // 获取当前选中的值
                             drawSankey(this.value)
+                            aggBox.selectedIndex = 0;
                         });
                         const existingChart = seqContainer.select('.sankeyChart');
                         // 检查是否存在
@@ -1539,27 +1618,26 @@ export default {
                         const eventChart = seqContainer.append('g')
                             .attr('class', 'sankeyChart')
                             .attr('transform', `translate(${usernameTextWidth["username"+containerId]+(circleRadius * 2 + circleSpacing)}, ${0})`); // 控制图例位置
-                        drawSankey("相对时间")
+
+                        if(selectBox.value ==="Align By"){ drawSankey("相对时间")}
+                        else{
+                            drawSankey(selectBox.value)
+                        }
+
                         function drawSankey(alignment){
                             // 清除eventChart中的全部元素
                             eventChart.selectAll("*").remove();
+                            let sankeyWidth
+                            if(isAgg&&selectBox.value==="全局对齐"){
+                                sankeyWidth=(maxLength+10) * (circleRadius*2 + circleSpacing)-usernameTextWidth["username"+containerId]
+                            }
+                            else{sankeyWidth=(maxLength+3) * (circleRadius*2 + circleSpacing)-usernameTextWidth["username"+containerId]}
 
                             d3Sankey.sankey()
                                 .nodeAlign(d3Sankey.sankeyLeft)
                                 .nodeWidth(circleRadius*2)
-                                .size([(maxLength+1) * (circleRadius*2 + circleSpacing)-usernameTextWidth["username"+containerId], (circleRadius * 2.5 + circleSpacing)* Object.keys(data).length])
+                                .size([sankeyWidth, (circleRadius * 2.5 + circleSpacing)* Object.keys(data).length])
                                 ({nodes:nodes, links:links});
-
-                            // eventChart.append("g")
-                            //     .selectAll('path')
-                            //     .data(links.filter(d => d.target.name !== 'unknown'))
-                            //     .enter()
-                            //     .append('path')
-                            //     .attr('d', d => d3Sankey.sankeyLinkHorizontal(0, false)(d))
-                            //     .attr('stroke', 'grey')
-                            //     .attr('stroke-width', 2)
-                            //     .attr('stroke-opacity', 0.6)
-                            //     .attr('fill', 'none');
 
                             // 使用对象来分组具有相同name.split("*")[1]的数据
                             const groupedData = nodes.reduce((acc, item) => {
@@ -1577,52 +1655,75 @@ export default {
                             });
 
                             if(alignment==="全局对齐"){
-                                axios.post('http://127.0.0.1:5000/global_align', { data: sequences })
-                                    .then(response => {
-                                        const location = response.data["location"]
-                                        createNodes(containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation,location)
+                                if(!isAgg){
+                                    axios.post('http://127.0.0.1:5000/global_align', { data: sequences })
+                                        .then(response => {
+                                            const location = response.data["location"]
+                                            const align_result = response.data["align_result"]
+                                            let outerKeys = Object.keys(data);
+                                            align_data = outerKeys.reduce((acc, key, index) => {
+                                                acc[key] = align_result[index];
+                                                return acc;
+                                            }, {});
 
-                                        const newLength = response.data["length"]
-                                        let svgWidth = margin.left + (newLength+1) * (circleRadius * 2 + circleSpacing) + margin.right;
-                                        if (svgWidth < containerWidth){
-                                            svgWidth = containerWidth
-                                        }
-                                        d3.select('.svgContainer' + containerId).attr('width', svgWidth)
-                                    })
-                                    .catch(error => {
-                                        console.error(error);
-                                    });
+                                            createNodes(false,containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation,location)
+
+                                            const newLength = response.data["length"]
+                                            let svgWidth
+                                            if(isAgg){
+                                                svgWidth = margin.left + (newLength+10) * (circleRadius * 2 + circleSpacing) + margin.right;
+                                            }
+                                            else{
+                                                svgWidth = margin.left + (newLength+3) * (circleRadius * 2 + circleSpacing) + margin.right;
+                                            }
+                                            if (svgWidth < containerWidth){
+                                                svgWidth = containerWidth
+                                            }
+                                            d3.select('.svgContainer' + containerId).attr('width', svgWidth)
+                                        })
+                                        .catch(error => {
+                                            console.error(error);
+                                        });
+                                }
                             }
 
                             if(alignment==="局部对齐"){
-                                axios.post('http://127.0.0.1:5000/local_align', { data: sequences })
-                                    .then(response => {
-                                        const location = response.data["location"]
-                                        let userMove ={}
-                                        Object.keys(data).forEach((username, index) => {
-                                            userMove[username]= location[index]
+                                if(!isAgg){
+                                    axios.post('http://127.0.0.1:5000/local_align', { data: sequences })
+                                        .then(response => {
+                                            const location = response.data["location"]
+                                            let userMove ={}
+                                            Object.keys(data).forEach((username, index) => {
+                                                userMove[username]= location[index]
+                                            });
+
+                                            createNodes(false,containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation,userMove)
+
+                                            const newLength = response.data["length"]
+                                            let svgWidth = margin.left + (newLength+maxLength) * (circleRadius * 2 + circleSpacing) + margin.right;
+                                            if (svgWidth < containerWidth){
+                                                svgWidth = containerWidth
+                                            }
+                                            d3.select('.svgContainer' + containerId).attr('width', svgWidth)
+                                        })
+                                        .catch(error => {
+                                            console.error(error);
                                         });
-
-                                        createNodes(containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation,userMove)
-
-                                        const newLength = response.data["length"]
-                                        let svgWidth = margin.left + (newLength+maxLength) * (circleRadius * 2 + circleSpacing) + margin.right;
-                                        if (svgWidth < containerWidth){
-                                            svgWidth = containerWidth
-                                        }
-                                        d3.select('.svgContainer' + containerId).attr('width', svgWidth)
-                                    })
-                                    .catch(error => {
-                                        console.error(error);
-                                    });
+                                }
                             }
+
                             else{
-                                let svgWidth = margin.left + (maxLength+1) * (circleRadius * 2 + circleSpacing) + margin.right;
+                                let svgWidth = margin.left + (maxLength+3) * (circleRadius * 2 + circleSpacing) + margin.right;
                                 if (svgWidth < containerWidth){
                                     svgWidth = containerWidth
                                 }
                                 d3.select('.svgContainer' + containerId).attr('width', svgWidth)
-                                createNodes(containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation)
+                                if(!isAgg){
+                                    createNodes(isAgg,containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,userLocation)
+                                }
+                                else{
+                                    createNodes(isAgg,containerId,container,containerRect,eventChart,nodes,links,sankeyNodes,sankeyHeads,sankeyTails,tooltip,seqView,colorMap,sunburstColor,2," ",data,alignment,aggUserLocation)
+                                }
                             }
                         }
                     })
@@ -1650,8 +1751,8 @@ export default {
             const set1Brush = d3.brush()
                 .on("start brush", (event) => brushed(event, "set1Brush"));
 
-            const set2Brush = d3.brush()
-                .on("start brush", (event) => brushed(event, "set2Brush"));
+            // const set2Brush = d3.brush()
+            //     .on("start brush", (event) => brushed(event, "set2Brush"));
 
             function brushed(event,chooseBrush) {
                 if (!event.selection) return;
@@ -1677,9 +1778,9 @@ export default {
                 else if(chooseBrush==="set1Brush"){
                     createSet1(x0,y0,x1,y1,selectedData)
                 }
-                else if(chooseBrush==="set2Brush"){
-                    createSet2(x0,y0,x1,y1,selectedData)
-                }
+                // else if(chooseBrush==="set2Brush"){
+                //     createSet2(x0,y0,x1,y1,selectedData)
+                // }
             }
 
             function findSeq(x0,y0,x1,y1,selectedData) {
@@ -1728,18 +1829,23 @@ export default {
                     .style('pointer-events', 'all')
                     .on('click', () => {
                         Swal.fire({
-                            title: '确认操作',
-                            text: "是否将选中的序列加入eventSet1？",
+                            title: 'Confirm',
+                            text: "Add to event set?",
                             icon: 'warning',
                             showCancelButton: true,
                             confirmButtonColor: '#3085d6',
                             cancelButtonColor: '#d4605e',
-                            confirmButtonText: '是',
-                            cancelButtonText: '否'
+                            confirmButtonText: 'Yes',
+                            cancelButtonText: 'No'
                         }).then((result) => {
                             if (result.isConfirmed) {
-                                Event1Input.value=selectedData;
+                                // Event1Input.value=selectedData;
                                 eventSet1 = selectedData
+                                const myDiv = document.getElementById(containerId)
+                                const nodeId =myDiv.getAttribute("nodeId");
+                                const rulesForInteractive = getRulesForInteractive(selectedData,containerId)
+                                const value={"expression":rulesForInteractive,"data":selectedData}
+                                changeInteractive(nodeId,value)
                             }
                         })
                     })
@@ -1753,44 +1859,44 @@ export default {
                     });
             }
 
-            function createSet2(x0,y0,x1,y1,selectedData) {
-                // 移除旧的点击区域
-                svg.selectAll('.set2-region').remove();
-                // 创建一个点击响应区域，是否加入异常序列
-                svg.append('rect')
-                    .attr('class', 'set2-region')
-                    .attr('x', x0)
-                    .attr('y', y0)
-                    .attr('width', x1 - x0)
-                    .attr('height', y1 - y0)
-                    .style('fill', 'none')
-                    .style('pointer-events', 'all')
-                    .on('click', () => {
-                        Swal.fire({
-                            title: '确认操作',
-                            text: "是否将选中的序列加入eventSet2？",
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#3085d6',
-                            cancelButtonColor: '#d4605e',
-                            confirmButtonText: '是',
-                            cancelButtonText: '否'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                Event2Input.value=selectedData;
-                                eventSet2 = selectedData
-                            }
-                        })
-                    })
-                    .on('contextmenu',function(event){
-                        event.preventDefault();
-                        svg.selectAll('.set2-region').remove();
-                        svg.select(".set2Brush").call(set2Brush.move, null);
-                        svg.select(".set2Brush").selectAll("*").remove();
-                        svg.select(".set2Brush").on(".set2Brush", null);
-                        svg.selectAll(".event-selected").classed("event-selected", false);
-                    });
-            }
+            // function createSet2(x0,y0,x1,y1,selectedData) {
+            //     // 移除旧的点击区域
+            //     svg.selectAll('.set2-region').remove();
+            //     // 创建一个点击响应区域，是否加入异常序列
+            //     svg.append('rect')
+            //         .attr('class', 'set2-region')
+            //         .attr('x', x0)
+            //         .attr('y', y0)
+            //         .attr('width', x1 - x0)
+            //         .attr('height', y1 - y0)
+            //         .style('fill', 'none')
+            //         .style('pointer-events', 'all')
+            //         .on('click', () => {
+            //             Swal.fire({
+            //                 title: '确认操作',
+            //                 text: "是否将选中的序列加入eventSet2？",
+            //                 icon: 'warning',
+            //                 showCancelButton: true,
+            //                 confirmButtonColor: '#3085d6',
+            //                 cancelButtonColor: '#d4605e',
+            //                 confirmButtonText: '是',
+            //                 cancelButtonText: '否'
+            //             }).then((result) => {
+            //                 if (result.isConfirmed) {
+            //                     // Event2Input.value=selectedData;
+            //                     eventSet2 = selectedData
+            //                 }
+            //             })
+            //         })
+            //         .on('contextmenu',function(event){
+            //             event.preventDefault();
+            //             svg.selectAll('.set2-region').remove();
+            //             svg.select(".set2Brush").call(set2Brush.move, null);
+            //             svg.select(".set2Brush").selectAll("*").remove();
+            //             svg.select(".set2Brush").on(".set2Brush", null);
+            //             svg.selectAll(".event-selected").classed("event-selected", false);
+            //         });
+            // }
 
             // 监听选中的异常事件
             store.watch(() => store.state.selectedSeq, (newValue, oldValue) => {
@@ -1825,9 +1931,8 @@ export default {
                 .attr("class", "brush")
             svg.append("g")
                 .attr("class", "set1Brush")
-            svg.append("g")
-                .attr("class", "set2Brush")
-
+            // svg.append("g")
+            //     .attr("class", "set2Brush")
 
             startButton.addEventListener('click', function() {
                 svg.select(".brush").call(brush);
@@ -1837,9 +1942,9 @@ export default {
                 svg.select(".set1Brush").call(set1Brush);
             });
 
-            set2Button.addEventListener('click', function() {
-                svg.select(".set2Brush").call(set2Brush);
-            });
+            // set2Button.addEventListener('click', function() {
+            //     svg.select(".set2Brush").call(set2Brush);
+            // });
         }
     },
 
@@ -1979,7 +2084,7 @@ export default {
         })
 
         // 计算 SVG 的宽度
-        let svgWidth = margin.left + (maxLength+1) * (circleRadius * 2 + circleSpacing) + margin.right;
+        let svgWidth = margin.left + (maxLength+2) * (circleRadius * 2 + circleSpacing) + margin.right;
         if (svgWidth < containerWidth){
             svgWidth = containerWidth
         }
@@ -2156,7 +2261,7 @@ export default {
                     .style('font-size', '12px')
                     .text(d => d.tail.name);
 
-                createNodes(containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,2)
+                createNodes(false,containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,2)
 
                 const svgElement = d3.select('.aggSankeyChart');
                 const svgRect = svgElement.node().getBoundingClientRect();

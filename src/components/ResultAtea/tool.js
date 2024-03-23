@@ -465,7 +465,17 @@ export function fillData(originalData, newData) {
     return result;
 }
 
-export function createNodes(containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove){
+export function createNodes(isAgg,containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove){
+    const colorSchemes = [
+        d3.schemeSet1, // 第0层（实际使用时可能不会为根节点着色）
+        d3.schemePastel1, // 第1层
+        d3.schemePastel2, // 第2层
+        d3.schemeAccent// 第3层...
+    ];
+
+    // 为每个层级创建一个序数比例尺
+    const colorScale = colorSchemes.map(scheme => d3.scaleOrdinal(scheme));
+
     let circleSpacing = sankeyNodesData[1].x1- sankeyNodesData[0].x1
 
     const partition = (newData) => {
@@ -492,9 +502,15 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
             let arr
             if(hasUsername){
                 arr = nodeData.name.split("*");
-                username =  arr[arr.length - 1]
+                if(!isAgg){
+                    username =  arr[arr.length - 1]
+                    trueIndex = arr[arr.length - 2]
+                }
+                else{
+                    username =  arr[arr.length - 2]
+                    trueIndex = arr[arr.length - 1]
+                }
                 className = `circle-${username}`
-                trueIndex = arr[arr.length - 2]
             }
             else{
                 arr = nodeData.name.split("*"); // 使用冒号分割字符串
@@ -502,7 +518,14 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
             }
 
             // 创建每个节点的旭日图数据
-            const hierarchyData = createSunburstData(nodeData.data, seqView);
+            let hierarchyData
+            if(!isAgg){
+                hierarchyData = createSunburstData(nodeData.data, seqView);
+            }
+            else{
+                hierarchyData = createHierarchyForTimeLine(nodeData.data,nodeData.name);
+            }
+
             // 计算每个旭日图的圆心位置和半径
             let centerX,centerY
 
@@ -513,10 +536,19 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
             // 找出最早和最晚的时间点
             const minx1 = Math.min.apply(null,x1);
             const maxx1 = Math.max.apply(null,x1);
-            if(alignment==="相对时间"||alignment===undefined){
+            // 绘制旭日图
+            const root = d3.hierarchy(hierarchyData).sum((d) => d.value).sort((a, b) => b.value - a.value)
+            partition(root)
+            if(alignment==="相对时间"||alignment===undefined||isAgg===true){
                 centerX = (nodeData.x0 + nodeData.x1) / 2
+
                 if(hasUsername){
-                    centerY =  userLocation[username]
+                    if(!isAgg){
+                        centerY =  userLocation[username]
+                    }
+                    else{
+                        centerY =  userLocation[nodeData.name.split("*")[0]]
+                    }
                 }
                 else{
                     centerY = (nodeData.y0 + nodeData.y1) / 2
@@ -571,39 +603,32 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
             }
 
             function drawNodes(){
-                // 绘制旭日图
-                const root = d3.hierarchy(hierarchyData).sum((d) => d.value).sort((a, b) => b.value - a.value)
-                const sunburstData = partition(root)
                 // 添加路径元素
                 let arc
                 if(number!==1){
                     arc = d3.arc()
-                        .startAngle(function(d) { return d.x0; })
-                        .endAngle(function(d) { return d.x1; })
-                        .innerRadius(function(d) {
-                            if(d.depth===0){return 0}
-                            else{return 0}})
-                            // else{return radius/1.6}})
-                        .outerRadius(function(d) {
-                            if(d.depth===0){return radius/1.7}
-                            else{return radius}});
+                        .startAngle(d => d.x0)
+                        .endAngle(d => d.x1)
+                        .innerRadius(d => d.y0 *4.2)
+                        .outerRadius(d => d.y1 *4.2)
                 }
                 else{
                     arc = d3.arc()
                         .startAngle(function(d) { return d.x0; })
                         .endAngle(function(d) { return d.x1; })
-                        .innerRadius(function(d) {return 0})
-                        .outerRadius(function(d) {return radius});
+                        .innerRadius(0)
+                        .outerRadius(radius);
                 }
 
                 sankeyNodes = aggSankeyChart.selectAll(`[circleName="${className}"]`)
-                    .data(sunburstData.descendants(), (d) => {
-                        return d.data.name})
+                    .data(root.descendants(), (d) => {
+                        if(!isAgg){
+                            return d.data.name}
+                        else{
+                            return d.data.name+'*'+nodeData.name}
+                    })
                     .enter()
                     .append('path')
-                    // 添加黑色边框
-                    .style('stroke', 'grey') // 设置边框颜色为黑色
-                    .style('stroke-width', '1px') // 设置边框宽度
                     .attr('class', classString)
                     .attr('id', `${idString}${trueIndex}`)
                     .attr('circleName', className)
@@ -616,68 +641,119 @@ export function createNodes(containerId,container,containerRect,aggSankeyChart,s
                     .attr('d', arc)
                     .style("fill", function(d) {
                         if(d.depth === 0){return  colorMap[parseAction(arr[0])]}
-                        // else{return sunburstColor(d.data.name.split("*")[0]);}
-                        else{return colorMap[d.data.name.split("*")[0]]}
+                        else{
+                            // return colorMap[d.data.name.split("*")[0]] ? colorMap[d.data.name.split("*")[0]] : colorScale[d.depth](d.data.name.split("*")[0])
+                            return colorMap[d.data.name.split("*")[0]] ? colorMap[d.data.name.split("*")[0]] : '#C0C0C0'
+                        }
                     })
                     .attr('fill-opacity', 1)
                     .on('mouseover', function (e, d) {
-                        const str = this.id;
-                        const parts = str.split("-");
-                        let circleId = parts[parts.length - 1]; // 获取最后一个部分
-                        // 获取与当前节点相关的所有连线
-                        // const relatedLinks = sankeyLinksData.filter(link => link.source === nodeData || link.target === nodeData);
-                        // const relatedNodes = getRelatedNodes(nodeData,sankeyLinksData);
-                        // highlightSankeyChart(aggSankeyChart, sankeyNodes, sankeyHeads, sankeyTails, relatedLinks, relatedNodes)
-                        sankeyTooltip.transition()
-                            .duration(200)
-                            .style("opacity", .9)
-                        let tooltipText
-                        if(hasUsername){
-                            let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                            // 创建要显示的信息字符串
-                            tooltipText = "<strong>" + circlename + "</strong><br/>";
-                            Object.keys(data[username]).forEach(key => {
-                                if (Array.isArray(data[circlename][key]) && data[circlename][key][circleId] !== undefined) {
-                                    let cellData = data[circlename][key][circleId]
-                                    if (typeof cellData === 'string' && cellData.includes('GMT')) {
-                                        // 如果数据是日期时间字符串类型，进行格式化
-                                        cellData = formatDateTime(cellData);
+                        if(!isAgg){
+                            const str = this.id;
+                            const parts = str.split("-");
+                            let circleId = parts[parts.length - 1]; // 获取最后一个部分
+                            sankeyTooltip.transition()
+                                .duration(200)
+                                .style("opacity", .9)
+                            let tooltipText
+                            if(hasUsername){
+                                let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
+                                // 创建要显示的信息字符串
+                                tooltipText = "<strong>" + circlename + "</strong><br/>";
+                                Object.keys(data[username]).forEach(key => {
+                                    if (Array.isArray(data[circlename][key]) && data[circlename][key][circleId] !== undefined) {
+                                        let cellData = data[circlename][key][circleId]
+                                        if (typeof cellData === 'string' && cellData.includes('GMT')) {
+                                            // 如果数据是日期时间字符串类型，进行格式化
+                                            cellData = formatDateTime(cellData);
+                                        }
+                                        tooltipText += key + ": " + cellData + "<br/>";
                                     }
-                                    tooltipText += key + ": " + cellData + "<br/>";
-                                }
-                            });
-                        }
+                                });
+                            }
 
+                            else{
+                                if(d.data.name===nodeData.name.split("*")[0]){
+                                    tooltipText = `<p>${d.data.name} <strong>${nodeData.value}</strong></p>`
+                                }
+                                else{
+                                    if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
+                                        d.data.name = formatDateTime(d.data.name);
+                                    }
+                                    tooltipText = `<p>${d.data.name}</p>`
+                                }
+                            }
+                            sankeyTooltip.html(tooltipText) // 设置提示框的内容
+                                .style("left", (e.pageX)- containerRect.left + container.scrollLeft + "px")
+                                .style("top", (e.pageY - containerRect.top + 10) + "px")
+                                .style("width", "auto")
+                                .style("white-space", "nowrap");
+                        }
                         else{
-                            if(d.data.name===nodeData.name.split("*")[0]){
-                                tooltipText = `<p>${d.data.name} <strong>${nodeData.value}</strong></p>`
+                            sankeyTooltip.transition()
+                                .duration(200)
+                                .style('opacity', 0.8);
+
+                            let tooltipContent
+                            if(d.data.value){
+                                tooltipContent=`${d.data.name.split("*")[0]}: <strong>${d.data.value}</strong>`
                             }
                             else{
-                                if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
-                                    d.data.name = formatDateTime(d.data.name);
-                                }
-                                tooltipText = `<p>${d.data.name}</p>`
+                                tooltipContent=`${d.data.name.split("*")[0]}`
                             }
+                            sankeyTooltip.html(tooltipContent)
+                                .style('left', (e.pageX)-containerRect.left + 'px')
+                                .style('top', (e.pageY)-containerRect.top + 'px');
                         }
-                        sankeyTooltip.html(tooltipText) // 设置提示框的内容
-                            .style("left", (e.pageX)- containerRect.left + container.scrollLeft + "px")
-                            .style("top", (e.pageY - containerRect.top + 10) + "px")
-                            .style("width", "auto")
-                            .style("white-space", "nowrap");
                     })
                     .on('mouseout', function () {
                         sankeyTooltip.transition()
                             .duration(500)
                             .style("opacity", 0);
                     });
+
+                if(!isAgg){
+                    // 添加黑色边框
+                    // sankeyNodes.style('stroke', 'grey') // 设置边框颜色为黑色
+                    // .style('stroke-width', '1px') // 设置边框宽度
+                }
+                else{
+                    sankeyNodes
+                        .attr('display', d => d.depth ? null : 'none') // 隐藏根节点
+                        .style('stroke', '#fff') // 设置分隔线颜色
+                }
             }
 
         }
     });
 }
 
+export function createHierarchyForTimeLine(data,name) {
+    function transform(node) {
+        // 如果节点是一个数值，表示我们到达了叶子节点，返回其值
+        if (typeof node === 'number') {
+            return { value: node };
+        }
 
-export function hierarchyData(data) {
+        // 否则，遍历对象的键值对，构建children数组
+        const children = Object.keys(node).map(key => {
+            return {
+                name: key+"*"+name,
+                ...transform(node[key]) // 递归转换当前节点
+            };
+        });
+
+        return { children };
+    }
+
+    // 开始转换，假设最顶层的"name"是"root"
+    return {
+        name: "root",
+        ...transform(data)
+    };
+}
+
+export function createHierarchyData(data) {
     function transform(node) {
         // 如果节点是一个数值，表示我们到达了叶子节点，返回其值
         if (typeof node === 'number') {
@@ -701,7 +777,6 @@ export function hierarchyData(data) {
         ...transform(data)
     };
 }
-
 
 export function collectNamesByDepth(node) {
     const namesByDepth = []; // 使用列表存储每个层级的名称列表
@@ -727,4 +802,135 @@ export function collectNamesByDepth(node) {
     traverse(node, 0); // 从根节点开始遍历，根节点层级为0
 
     return namesByDepth;
+}
+
+export function processLabelData(node, path = [], level = 0) {
+    if (typeof node === 'object' && !Array.isArray(node) && node !== null) {
+        // 判断是否到达了倒数第二层
+        if (Object.values(node)[0] && typeof Object.values(node)[0] === 'object' && !Array.isArray(Object.values(node)[0]) && Object.values(node)[0] !== null) {
+            return Object.entries(node).flatMap(([key, value]) => {
+                return processLabelData(value, path.concat(key), level + 1);
+            });
+        } else {
+            return [{ path, level }];
+        }
+    } else {
+        return [{ path, level }];
+    }
+}
+
+export function flatten(obj, parentKey = '', result = {}) {
+    for (let key in obj) {
+        let newKey = parentKey ? `${parentKey}&${key}` : key;
+        if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+            flatten(obj[key], newKey, result);
+        } else {
+            result[parentKey] = result[parentKey] || {};
+            result[parentKey][key] = Array.from(obj[key]);
+        }
+    }
+    return result;
+}
+
+export function extractInfoBySeqView(data, key) {
+    let result = {};
+    for (let entry in data) {
+        let info = data[entry];
+        if (Array.isArray(info)) {
+            result[entry] = info ;
+        } else {
+            let subEntries = Object.keys(info);
+            for (let subEntry of subEntries) {
+                if (subEntry === key) {
+                    result[entry] = info[subEntry];
+                }
+            }
+        }
+    }
+    return result;
+}
+
+export function groupData(data) {
+    let nestedData = {};
+
+    function addToNestedData(obj, parts, action) {
+        if (parts.length === 1) {
+            obj[parts[0]] = action;
+        } else {
+            let currentPart = parts.shift();
+            if (!obj[currentPart]) {
+                obj[currentPart] = {};
+            }
+            addToNestedData(obj[currentPart], parts, action);
+        }
+    }
+
+    for (let key in data) {
+        let parts = key.split('&');
+        let action = data[key];
+        addToNestedData(nestedData, parts, action);
+    }
+
+    return nestedData;
+}
+
+//用于获取被brush的数据
+export function changeInteractive(key,value){
+    store.state.interactionData = {}
+    store.commit('setInteractionData',{ key:key,value:value })
+
+}
+
+// 给当前的交互矩形块绑定表达式信息
+export function getRulesForInteractive(filters,containerId){
+    const myDiv =  document.getElementById(containerId)
+    let codeContext =myDiv.getAttribute("codeContext");
+    const [dataKey] = codeContext.split(".");
+    const originalData = store.state.originalTableData[dataKey]
+    const filterRules={}
+    let modifiedString;
+
+    if(filters.length===0){
+        myDiv.setAttribute("interactiveCodeContext", codeContext);
+    }
+    else {
+        for (let i = 0; i < filters.length; i++) {
+            const curd = filters[i]
+            // 当前点击的数据项在数据中的键 为了后面加上filter语句
+            const foundKey = findKeyByValue(originalData, curd);
+            if (foundKey !== null) {
+                if (!(foundKey in filterRules)) {
+                    filterRules[foundKey] = []
+                    filterRules[foundKey].push(curd)
+                } else {
+                    filterRules[foundKey].push(curd)
+                }
+            }
+            const filtersArray = [];
+
+            for (const key in filterRules) {
+                if (filterRules.hasOwnProperty(key)) {
+                    const values = filterRules[key];
+                    const filterString = `filter('${key}', 'in', ${JSON.stringify(values)})`;
+                    filtersArray.push(filterString);
+                }
+            }
+            const hasDot = codeContext.includes('.');
+            // 根据是否包含 '.' 进行不同的处理
+            if (filtersArray.length !== 0) {
+                if (hasDot) {
+                    const parts = codeContext.split('.');
+                    // modifiedString = `${parts[0]}.${filtersArray.join('.')}.${parts.slice(1).join('.')}`;
+                    modifiedString = `${parts[0]}.${filtersArray.join('.')}`;
+                } else {
+                    modifiedString = `${codeContext}.${filtersArray.join('.')}`;
+                }
+            } else {
+                modifiedString = codeContext
+            }
+        }
+    }
+    // 将字符串信息绑定到div的自定义属性上
+    myDiv.setAttribute("mouseoverCodeContext", modifiedString);
+    return modifiedString
 }

@@ -149,6 +149,7 @@ li:hover {
 	cursor: pointer; /* 鼠标悬浮时显示为指针形状 */
 }
 
-check:hover {
-	filter: brightness(150%) hue-rotate(180deg); /* 悬浮变色 */
+.myIcon:hover{
+	background: #eee;
+	border-radius: 2px;
 }

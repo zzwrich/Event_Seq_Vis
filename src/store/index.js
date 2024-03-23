@@ -33,7 +33,11 @@ const store = createStore({
             isSelectHistory: "",
             sheetName: "",
             sheetData: [],
-            filterParam: []
+            filterParam: [],
+            // 用于存放brush临时数据
+            interactionData: {},
+            // 当前点击的节点id
+            nodeId: ""
         };
     },
     mutations: {
@@ -141,6 +145,14 @@ const store = createStore({
         setFilterParam(state, option) {
             state.filterParam = option;
         },
+        setInteractionData(state, {key, value}) {
+            if (!(key in state.interactionData)) {
+                state.interactionData[key] = value;
+            }
+        },
+        setNodeId(state, option) {
+            state.nodeId = option;
+        },
     },
     actions: {
         saveResponseData({ commit }, data) {
@@ -244,6 +256,12 @@ const store = createStore({
         },
         saveFilterParam({ commit }, option) {
             commit('setFilterParam',option);
+        },
+        saveInteractionData({ commit }, {key, value}) {
+            commit('setInteractionData', {key, value});
+        },
+        saveNodeId({ commit }, option) {
+            commit('setNodeId',option);
         },
     }
 });
