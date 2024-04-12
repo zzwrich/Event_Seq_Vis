@@ -20,6 +20,7 @@
     "dagre-d3": "^0.6.4",
     "echarts": "^5.4.3",
     "element-plus": "^2.4.2",
+    "planck": "^1.0.0",
     "sweetalert2": "^11.10.6",
     "vue": "^3.3.4",
     "vue-draggable-next": "^2.2.1",
@@ -27,8 +28,10 @@
     "vuex": "^4.0.2"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
     "@vitejs/plugin-vue": "^4.2.3",
     "d3": "^7.8.5",
+    "sass": "^1.72.0",
     "vite": "^4.4.5"
   }
 }

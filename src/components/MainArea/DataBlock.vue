@@ -1,8 +1,8 @@
 <template>
-  <div class="data-table-container">
+  <div class="data-table-container" id="divBlock">
     <el-table
         :data="tableRows"
-        style="width: 100%;cursor: pointer;font-size: 1vh;height:100%"
+        style="cursor: pointer;font-size: 1vh;height:97%;top: 3%;width: 98%;left: 1%;border-radius: 5px;"
         @header-click="headerClicked"
     >
       <el-table-column
@@ -11,7 +11,7 @@
           :prop="sheet"
           :label="sheet">
         <template v-slot="{ row }">
-          <div class="clickable-cell" @click="cellClicked(row[sheet], sheet)">
+          <div class="clickable-cell">
             {{ row[sheet] }}
           </div>
         </template>
@@ -21,6 +21,8 @@
 </template>
 
 <script>
+
+import axios from "axios";
 
 export default {
   props: {
@@ -65,10 +67,6 @@ export default {
     },
   },
   methods: {
-    cellClicked(cellValue, columnName) {
-      // this.$store.dispatch('saveIsSelectParameter');
-      // this.$store.dispatch('saveSelectedParameter',cellValue);
-    },
     headerClicked(column, event) {
       this.$store.dispatch('saveIsSelectData');
       this.$store.dispatch('saveSelectedData', column.label || column.prop);
@@ -76,6 +74,17 @@ export default {
     printFirstSheetInfo() {
       const sheetName = Object.keys(this.tableData)[0]
       this.$store.dispatch('saveSheetName', sheetName);
+
+      // 前端可以直接把最后的操作传给后端 后面再改
+      axios.post('http://127.0.0.1:5000/executeCode', { code: sheetName, startTime:"", endTime:"" })
+          .then(response => {
+            this.responseData = response.data;
+            this.$store.dispatch('saveOriginalTableData', { key: sheetName, value: this.responseData['result'] });
+          })
+          .catch(error => {
+            console.error(error);
+          });
+
       const column = this.tableData[sheetName]
       this.$store.dispatch('saveSheetData', column);
     }
@@ -85,12 +94,10 @@ export default {
 
 <style>
 .data-table-container {
-  height: 36%;
+  height: 33%;
   position: absolute;
-  top: 5%; /* 底部与父容器底部对齐 */
+  top: 8%; /* 底部与父容器底部对齐 */
   max-height: 100%;
   overflow: auto; /* 如果内容超出最大高度，显示滚动条 */
-  left:0;
-  width:100%;
 }
 </style>

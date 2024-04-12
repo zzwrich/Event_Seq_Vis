@@ -2,18 +2,18 @@
   <div class="popup" v-if="visible" :style="{ left: left + 'px', top: top + 'px'}">
     <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
     <!-- 第一个内容块 -->
-    <div style="height: 100%;">
+    <div style="height: 98%;">
       <div class="content-block">
-        <h4>Operation</h4>
+        <h5>Operation</h5>
         <div class="operation-buttons">
-          <el-button v-for="(item, index) in operationList" :key="index" @click="chooseOperation(index)" class="operation-button">{{ item }}</el-button>
+          <el-button v-for="(item, index) in operationList" :key="index" @click="chooseOperation(index)" class="operation-button" style="background: #f9f9f9">{{ item }}</el-button>
         </div>
       </div>
       <!-- 分割线 -->
       <div class="splitLine"></div>
       <!-- 第二个内容块 -->
       <div class="content-block">
-        <h4>Visualization</h4>
+        <h5>Visualization</h5>
         <div style="margin-top: -16px">
           <img v-for="(img, index) in imgList" :key="index" :src="img.url" alt="Image" :style=img.style  class="hoverable-image" @click="chooseVisual(img.vis)"/>
         </div>
@@ -33,7 +33,7 @@
           range-separator="-"
           value-format="YYYY-MM-DD HH:mm:ss"
       />
-      <h4 style="margin-bottom: 5px;margin-top: 5px">Event Attributes</h4>
+      <h5 style="margin-bottom: 5px;margin-top: 5px">Event Attributes</h5>
       <el-select
           v-model="selectedLabel"
           placeholder="Select Attribute"
@@ -52,7 +52,7 @@
       <check style="width: 18px;height: 18px;cursor: pointer;color: #606266;position: absolute;margin-top: 8px;margin-left: 5px"
              @click="checkFilterAttr" class="myIcon"></check>
       <!-- 根据所选标签显示的选项列表 -->
-      <h4 style="margin-top: 10px;margin-bottom: 5px">Values</h4>
+      <h5 style="margin-top: 10px;margin-bottom: 5px">Values</h5>
       <el-input v-model="searchText" placeholder="Search" prefix-icon="Search" class="searchBox"></el-input>
       <div style="border: 2px solid #E9E9E9;border-radius: 5px;margin-top: 5px;width: 98%;margin-left: 3px">
         <ul class="popupList attrList" style="z-index: 9999;margin-top: 0">
@@ -117,7 +117,7 @@ export default {
         return this.attributeList; // 如果搜索框为空，则显示所有历史记录
       }
       return this.attributeList.filter(item =>
-          item.toLowerCase().includes(this.searchText.toLowerCase())
+          item.toString().toLowerCase().includes(this.searchText.toLowerCase())
       );
     },
   },
@@ -143,10 +143,12 @@ export default {
       }
       this.$store.dispatch('saveIsSelectParameter');
       this.$store.dispatch('saveSelectedParameter',"time");
+      this.$store.dispatch('saveFilterParam',[this.dateTimeRange[0],this.dateTimeRange[1]])
+      this.newPopupVisible = false
     },
-    visible(newVal) {
-      if (!newVal) {
-        this.newPopupVisible = false
+    visible(newValue){
+      if(newValue===false){
+        this.newPopupVisible=false
       }
     }
   },

@@ -15,7 +15,7 @@ export function boxStyle(box) {
         position: 'absolute',
         top: box.y + '%',
         left: box.x + '%',
-        // border: '2px solid #D3D3D3',
+        border: '2px solid #D3D3D3',
         'border-radius': '5px',
         'box-sizing': 'border-box',
         'background': 'white'
@@ -29,7 +29,6 @@ export function handleIncrement(boxes, boxIndex, rootWidth, rootHeight, directio
     const gap = 1; // 间隙大小，单位为百分比
     const boxWidth= parseFloat(box.width.replace('%', ''))/100;
     const boxHeight= parseFloat(box.height.replace('%', ''))/100;
-    // if (boxWidth * rootWidth >boxHeight * rootHeight)
     if (direction==="vertical") {
         const newWidth = boxWidth / 2;
         const newBox1 = { id: box.id, trueId: nextTrueId++, parentId:box.trueId, width: (newWidth*100-gap/2)+"%", height: boxHeight*100+"%", x:box.x, y:box.y, children: [],parent:[],isSelected:true };

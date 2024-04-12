@@ -37,7 +37,21 @@ const store = createStore({
             // 用于存放brush临时数据
             interactionData: {},
             // 当前点击的节点id
-            nodeId: ""
+            nodeId: "",
+            // 筛选事件对的起始时间
+            eventPairStartNum: "",
+            // 筛选事件对的终止时间
+            eventPairEndNum: "",
+            // 事件对分析类别
+            eventAnalyse: "",
+            // 是否对事件对进行分析
+            isAnalyseEvent: false,
+            isClickBrush: false,
+            isClickReset: false,
+            isClickCancelFilter: false,
+            isClickCancelBrush: false,
+            // 存放所有时间轴视图的id对应的数据
+            timeLineData: {}
         };
     },
     mutations: {
@@ -149,9 +163,55 @@ const store = createStore({
             if (!(key in state.interactionData)) {
                 state.interactionData[key] = value;
             }
+            else{
+                const obj1=state.interactionData
+                const obj2={}
+                obj2[key]= value
+                const nodeId = Object.keys(obj1)[0]
+                // 创建一个新的结果对象，其中包含合并后的expression数组和data数组
+                const merged = {
+                    [nodeId]: {
+                        expression: [],
+                        data: []
+                    }
+                };
+                // 合并expression数组
+                merged[nodeId]["expression"] = [...obj1[nodeId]["expression"], ...obj2[nodeId]["expression"]];
+                // 合并data数组
+                merged[nodeId]["data"] = [...obj1[nodeId]["data"], ...obj2[nodeId]["data"]];
+                // 返回新的合并后的数据对象
+                state.interactionData = merged
+            }
         },
         setNodeId(state, option) {
             state.nodeId = option;
+        },
+        setEventPairStartNum(state, option) {
+            state.eventPairStartNum = option;
+        },
+        setEventPairEndNum(state, option) {
+            state.eventPairEndNum = option;
+        },
+        setEventAnalyse(state, option) {
+            state.eventAnalyse = option;
+        },
+        setIsAnalyseEvent(state) {
+            state.isAnalyseEvent = !state.isAnalyseEvent;
+        },
+        setIsClickBrush(state) {
+            state.isClickBrush = !state.isClickBrush;
+        },
+        setIsClickReset(state) {
+            state.isClickReset = !state.isClickReset;
+        },
+        setIsClickCancelFilter(state) {
+            state.isClickCancelFilter = !state.isClickCancelFilter;
+        },
+        setIsClickCancelBrush(state) {
+            state.isClickCancelBrush = !state.isClickCancelBrush;
+        },
+        setTimeLineData(state, { key, value }) {
+            state.timeLineData[key] = value;
         },
     },
     actions: {
@@ -262,6 +322,33 @@ const store = createStore({
         },
         saveNodeId({ commit }, option) {
             commit('setNodeId',option);
+        },
+        saveEventPairStartNum({ commit }, option) {
+            commit('setEventPairStartNum',option);
+        },
+        saveEventPairEndNum({ commit }, option) {
+            commit('setEventPairEndNum',option);
+        },
+        saveEventAnalyse({ commit }, option) {
+            commit('setEventAnalyse',option);
+        },
+        saveIsAnalyseEvent({ commit }) {
+            commit('setIsAnalyseEvent');
+        },
+        saveIsClickBrush({ commit }) {
+            commit('setIsClickBrush');
+        },
+        saveIsClickReset({ commit }) {
+            commit('setIsClickReset');
+        },
+        saveIsClickCancelFilter({ commit }) {
+            commit('setIsClickCancelFilter');
+        },
+        saveIsClickCancelBrush({ commit }) {
+            commit('setIsClickCancelBrush');
+        },
+        saveTimeLineData({ commit }, {key, value}) {
+            commit('setTimeLineData', {key, value});
         },
     }
 });

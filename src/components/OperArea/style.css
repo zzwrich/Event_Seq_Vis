@@ -1,9 +1,23 @@
 .myLine {
 	position: absolute;
-	width: 100%;
-	top: 52%;
+	width: 98%;
+	left: 1%;
+	top: 48%;
 	height: 2px;
 	background-image: linear-gradient(to right, #D3D3D3 55%, rgba(255,255,255,0) 0%); /* 45%设置虚线点x轴上的长度 */
+	background-position: bottom; /* top配置上边框位置的虚线 */
+	background-size: 6px 2px; /* 第一个参数设置虚线点的间距；第二个参数设置虚线点y轴上的长度 */
+	background-repeat: repeat-x;
+	z-index: 0
+}
+
+.myLine2 {
+	position: absolute;
+	width: 98%;
+	left: 1%;
+	top: 73%;
+	height: 2px;
+	background-image: linear-gradient(to right, #DCDCDC 55%, rgba(255,255,255,0) 0%); /* 45%设置虚线点x轴上的长度 */
 	background-position: bottom; /* top配置上边框位置的虚线 */
 	background-size: 6px 2px; /* 第一个参数设置虚线点的间距；第二个参数设置虚线点y轴上的长度 */
 	background-repeat: repeat-x;
@@ -16,23 +30,28 @@
 	margin-bottom: 30px;
 }
 
+#word{
+	font-size: 80%;
+	color: #666666;
+	font-weight: bold;
+}
 
 .data {
 	position: absolute;
-	left: 10px;
+	left: 1%;
 	top: 2%;
-	font-size: 80%;
-	color: #666666;
-	z-index: 0
 }
 
 .view {
 	position: absolute;
-	left: 10px;
-	top: 54%;
-	font-size: 80%;
-	color: #666666;
-	z-index: 0
+	left: 1%;
+	top: 50%;
+}
+
+.intermedia {
+	position: absolute;
+	left: 1%;
+	top: 75%;
 }
 
 .popupList {
@@ -65,7 +84,7 @@
 .popup{
 	position: absolute;
 	width:25%;
-	height: 65%;
+	height: 68%;
 	background-color: #f9f9f9;
 	border: 2px solid #E9E9E9;
 	border-radius: 5px;
@@ -86,6 +105,32 @@
 	z-index: 2;
 	overflow-y: auto;
 	transition: all 0.1s ease;
+}
+
+.eventPopup{
+	position: absolute;
+	width: 20%;
+	height: 30%;
+	background-color: #f9f9f9;
+	border: 2px solid #E9E9E9;
+	border-radius: 5px;
+	padding: 20px;
+	z-index: 1;
+	overflow-y: auto;
+	transition: all 0.1s ease;
+}
+
+.eventDataPopup{
+	position: absolute;
+	width: 16%;
+	height: 20%;
+	background-color: #f9f9f9;
+	border: 2px solid #E9E9E9;
+	border-radius: 5px;
+	padding: 20px;
+	z-index: 1;
+	transition: all 0.1s ease;
+	overflow: auto;
 }
 
 .elOption .el-select-dropdown__wrap {
@@ -133,10 +178,18 @@
 	width: 5.5vw;
 	margin-bottom: 8px;
 	margin-right: 10px;
+	box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.1), 0px 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.event-button {
+	text-align: center; /* 确保文字居中 */
+	width: 4vw;
+	margin-bottom: 8px;
+	box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.1), 0px 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .content-block{
-	margin-top: -20px;
+	margin-top: -25px;
 }
 
 .searchBox{
@@ -152,4 +205,17 @@ li:hover {
 .myIcon:hover{
 	background: #eee;
 	border-radius: 2px;
+}
+
+.nodeImg{
+	position:relative;
+	top: 10px;
+	width: 25px;
+	height: 25px;
+	margin-right: 10px;
+}
+
+.nodeImg:hover {
+	cursor: pointer;
+	filter: brightness(150%) hue-rotate(180deg); /* 悬浮变色 */
 }

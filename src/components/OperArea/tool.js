@@ -34,3 +34,13 @@ export function enhanceFilterExpression(baseString, params) {
     });
     return newString;
 }
+
+export function enhanceFilterTimeExpression(original, insertTemplate, startTime, endTime) {
+    const dotIndex = original.indexOf('.');
+    if (dotIndex === -1) {
+        return original;
+    }
+    // 使用模板字符串和参数格式化要插入的字符串
+    const formattedInsertion = insertTemplate.replace('{startTime}', startTime).replace('{endTime}', endTime);
+    return original.substring(0, dotIndex + 1) + formattedInsertion + "." + original.substring(dotIndex + 1);
+}

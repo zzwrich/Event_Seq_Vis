@@ -4,8 +4,8 @@
 	grid-template-rows: repeat(10, 1fr);
 	gap: 10px;
 	height: 100vh;
-	background: #eeeeee;
-	border: 6px solid #eeeeee;
+	/*background: #eeeeee;*/
+	/*border: 6px solid #eeeeee;*/
 }
 
 
@@ -16,6 +16,8 @@
 	position: relative;
 	padding: 20px;
 	/*background: white;*/
+	border-radius: 5px;
+	border: 2px solid #DCDCDC;
 }
 
 .block3 {
@@ -25,6 +27,7 @@
 	/*border: 2px solid #D3D3D3;*/
 	border-radius: 5px;
 	background: white;
+	border: 2px solid #DCDCDC;
 }
 
 .block4 {
@@ -33,13 +36,6 @@
 	grid-column: 3 / span 8;
 	/* b4 占据第3-9列 */
 	position: relative;
+	/*border: 2px solid #DCDCDC;*/
+	/*border-radius: 5px;*/
 }
-
-/*.block5 {*/
-/*	!*border: 2px solid #D3D3D3;*!*/
-/*	border-radius: 5px;*/
-/*	grid-row: 1 / span 1;*/
-/*	grid-column: 3 / span 8;*/
-/*	z-index: 0;*/
-/*	background: white;*/
-/*}*/

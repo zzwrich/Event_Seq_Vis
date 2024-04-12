@@ -1,10 +1,11 @@
 .button-container {
 	position: absolute;
 	z-index: 1;
-	background: #eeeeee;
+	background: #fafbfb;
 	left: 3px;
 	right: 3px;
 	top: 0.2vh;
+	height: 24px;
 	display: flex;
 	justify-content: flex-end;
 	border-radius: 5px

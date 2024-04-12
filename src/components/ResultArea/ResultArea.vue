@@ -4,13 +4,13 @@
     <div :id="`chart-container-${box.id}`" class="chart-container" @click="selectChart(box) && $event.stopPropagation()" style="position: relative;height: 95.5%; width: 100%; overflow: auto; top: 3vh;"></div>
     <!--按钮容器-->
     <div class="button-container">
-      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'vertical',containerId,selectId)" size="small" style="height: 2.5vh">
+      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'vertical',containerId,selectId)" size="small" class="imgContainer">
         <img src="../../assets/horizontal.png" alt="horizontal" style="width: 15px; height: 15px;">
       </el-button>
-      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'horizontal',containerId,selectId)" size="small" style="height: 2.5vh">
+      <el-button @click.stop="handleIncrement(boxes, index, rootWidth, rootHeight, 'horizontal',containerId,selectId)" size="small" class="imgContainer">
         <img src="../../assets/vertical.png" alt="vertical" style="width: 15px; height: 15px;">
       </el-button>
-      <el-button @click.stop="handleDecrement(boxes, index, containerId, selectId)" :disabled="!canDecrement(box)" size="small" style="margin-right: 10px;height: 2.5vh">
+      <el-button @click.stop="handleDecrement(boxes, index, containerId, selectId)" :disabled="!canDecrement(box)" size="small" style="margin-right: 10px;" class="imgContainer">
         <img src="../../assets/merge.png" alt="merge" style="width: 20px; height: 20px;">
       </el-button>
     </div>
@@ -116,6 +116,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-
+.imgContainer{
+  height: 20px;
+  margin-top: 2px
+}
 </style>
 

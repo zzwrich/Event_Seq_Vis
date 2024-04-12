@@ -2,7 +2,7 @@
   import operBlock from "./components/OperBlock.vue"
   import operArea from "./components/OperArea/OperArea.vue"
   import filterArea from "./components/MainArea/FilterArea.vue"
-  import resultArea from "./components/ResultAtea/ResultArea.vue"
+  import resultArea from "./components/ResultArea/ResultArea.vue"
 
 </script>
 

@@ -1,5 +1,7 @@
 <template>
-  <div class="uploadArea">
+  <div class="uploadArea" id="divBlock">
+<!--    <span class="module-title">Data Source</span>-->
+    <span style="margin-left: 15px;color: #666666;font-weight: bold;">Data Source</span>
     <el-upload
         class="upload-demo"
         action="http://127.0.0.1:5000/uploadFile"
@@ -8,77 +10,66 @@
         :fileType="fileType"
         :show-file-list="false"
         :before-upload="beforeUpload"
+        style="flex: 1; display: flex; justify-content: flex-end;margin-right: 10px"
     >
-      <el-button slot="trigger" size="small" style="position:relative;width: 100%;top: 5px">Data Source</el-button>
-<!--      <el-button @click.stop="executeCode" size="small">Execute code</el-button>-->
+      <el-button size="small" style="position:relative; cursor: pointer;">
+        <upload style="width: 15px;height: 15px;cursor: pointer;color: #606266"></upload>
+      </el-button>
     </el-upload>
   </div>
-<!--  <div class="codeExecutionArea">-->
-<!--    <el-input-->
-<!--        type="textarea"-->
-<!--        v-model="codeInput"-->
-<!--        placeholder="请输入要执行的代码"-->
-<!--        :rows="5">-->
-<!--    </el-input>-->
-
-<!--    <el-select v-model="selectedOption" @change="handleSelectChange"-->
-<!--               size="small"-->
-<!--               style="margin: 2%;width: 140px;"-->
-<!--               placeholder="Select visualization">-->
-<!--      <el-option-->
-<!--          v-for="item in visualTypes"-->
-<!--          :key="item.value"-->
-<!--          :label="item.label"-->
-<!--          :value="item.value"-->
-<!--          :disabled="isOptionDisabled(item.value)">-->
-<!--      </el-option>-->
-<!--    </el-select>-->
-<!--     时间范围选择器 -->
-<!--    <div class="timePicker">-->
-<!--      <el-date-picker-->
-<!--          v-model="dateTimeRange"-->
-<!--          type="datetimerange"-->
-<!--          size="small"-->
-<!--          style="width: 92%"-->
-<!--          start-placeholder="Start Time"-->
-<!--          end-placeholder="End Time"-->
-<!--          range-separator="-"-->
-<!--          value-format="YYYY-MM-DD HH:mm:ss"-->
-<!--      />-->
-<!--    </div>-->
-<!--  </div>-->
-  <div class="history">
-    <el-tabs v-model="activeTab" @tab-click="handleTabClick" type="card" stretch="stretch">
-      <!-- 历史查询面板 -->
-      <el-tab-pane label="History" name="history">
-        <div class="historyPanel">
-          <el-input v-model="searchText" placeholder="Search history" prefix-icon="Search" class="searchBox"></el-input>
-          <ul class="historyList">
-            <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">
-              {{ item }}
-              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn" style="font-size: 2%;">Delete</el-button>
-            </li>
-          </ul>
-        </div>
-      </el-tab-pane>
-      <!-- 异常序列记录面板 -->
-      <el-tab-pane label="Anomaly" name="anomalies">
-        <el-collapse v-model="activeCollapse">
-          <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'Sequence ' + (index + 1)"  @click="selectSequence(sequence)">
-            <ul>
-              <li v-for="(statement, stmtIndex) in sequence" :key="stmtIndex" >
-                {{ statement }}
-              </li>
-            </ul>
-            <el-button type="danger" size="small" @click="removeSequence(index)">Delete</el-button>
-          </el-collapse-item>
-        </el-collapse>
-      </el-tab-pane>
-    </el-tabs>
+  <div class="tool" id="divBlock">
+    <span class="module-title">Tool</span>
+    <img src="../../assets/brush.svg" alt="Image"  class="tool-image" @click="brush"/>
+    <img src="../../assets/cancelBrush.svg" alt="Image"  class="tool-image" @click="cancelBrush"/>
+    <img src="../../assets/cancelFilter.svg" alt="Image"  class="tool-image" @click="cancelFilter"/>
+    <img src="../../assets/reset.svg" alt="Image"  class="tool-image" @click="reset"/>
   </div>
-  <div class="dataBlock">
+
+  <div class="history" id="divBlock">
+    <span class="module-title">Code</span>
+    <div class="historyPanel">
+      <el-input v-model="searchText" placeholder="Search code" prefix-icon="Search" class="searchBox"></el-input>
+      <ul class="historyList">
+        <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">
+          {{ item }}
+          <delete style="width: 15px;height: 15px;cursor: pointer;color: #606266"  @click.stop="deleteHistory(index)" class="deleteBtn"></delete>
+        </li>
+      </ul>
+    </div>
+<!--    <el-tabs v-model="activeTab" @tab-click="handleTabClick" type="card" stretch="stretch">-->
+<!--      &lt;!&ndash; 历史查询面板 &ndash;&gt;-->
+<!--      <el-tab-pane label="Code" name="history" style="border-radius: 5px">-->
+<!--        <div class="historyPanel">-->
+<!--          <el-input v-model="searchText" placeholder="Search code" prefix-icon="Search" class="searchBox"></el-input>-->
+<!--          <ul class="historyList">-->
+<!--            <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">-->
+<!--              {{ item }}-->
+<!--              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn" style="font-size: 2%;">Delete</el-button>-->
+<!--            </li>-->
+<!--          </ul>-->
+<!--        </div>-->
+<!--      </el-tab-pane>-->
+<!--      &lt;!&ndash; 异常序列记录面板 &ndash;&gt;-->
+<!--      <el-tab-pane label="Anomaly" name="anomalies">-->
+<!--        <el-collapse v-model="activeCollapse" style="border-radius: 5px">-->
+<!--          <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'Sequence ' + (index + 1)"  @click="selectSequence(sequence)">-->
+<!--            <ul>-->
+<!--              <li v-for="(statement, stmtIndex) in sequence" :key="stmtIndex" >-->
+<!--                {{ statement }}-->
+<!--              </li>-->
+<!--            </ul>-->
+<!--            <el-button type="danger" size="small" @click="removeSequence(index)">Delete</el-button>-->
+<!--          </el-collapse-item>-->
+<!--        </el-collapse>-->
+<!--      </el-tab-pane>-->
+<!--    </el-tabs>-->
   </div>
   <DataBlock :tableData="responseFileData" />
+  <div >
+<!--    <div style="top: 6%;position: absolute" id="divPanel"><span style="margin-left: 10px">Data Message</span></div>-->
+    <div class="module-title" style="position: absolute;top: 7.1%;margin-left: 6px">Metadata</div>
+  </div>
+
 </template>
 
 <script>
@@ -88,8 +79,11 @@ import {Search} from "@element-plus/icons";
 import "./style.css"
 import { mapState } from 'vuex';
 import store from "@/store/index.js";
+import {Upload} from "@element-plus/icons-vue";
+import * as d3 from "d3";
 export default {
   components:{
+    Upload,
     Search,
     DataBlock
   },
@@ -101,15 +95,6 @@ export default {
       fileList: [],
       fileType: [ "xls", "xlsx","json"],
       selectedOption: '',
-      visualTypes: [
-        // { value: 'table', label: 'Table' },
-        { value: 'barChart', label: 'barChart' },
-        { value: 'pieChart', label: 'pieChart' },
-        { value: 'timeLine', label: 'timeLine' },
-        { value: 'Sankey', label: 'Sankey' },
-        { value: 'Heatmap', label: 'Heatmap' },
-        // { value: 'sunburst', label: '旭日图' },
-      ],
       operation: '',
       // 这里存储选择的日期范围
       dateTimeRange: [],
@@ -165,17 +150,20 @@ export default {
         this.executeCode()
       }
     },
-    dateRange(newValue, oldValue) {
-      // if(newValue){
-      //   this.$store.dispatch('saveDateRange', this.dateTimeRange);
-      // }
-      // else{
-      //   this.$store.dispatch('saveDateRange', []);
-      // }
-      this.executeCode()
-    }
   },
   methods: {
+    brush() {
+      store.dispatch('saveIsClickBrush');
+    },
+    cancelBrush() {
+      store.dispatch('saveIsClickCancelBrush');
+    },
+    reset() {
+      store.dispatch('saveIsClickReset');
+    },
+    cancelFilter() {
+      store.dispatch('saveIsClickCancelFilter');
+    },
     getDiv(){
       const parentDiv = document.getElementsByClassName('grid-item block4')[0];
       const childDivs = parentDiv.querySelectorAll('div');
@@ -212,31 +200,6 @@ export default {
       this.$store.dispatch('saveSelectedSeq', Object.values(item));
     },
 
-    // handleSelectChange(value) {
-    //   this.$store.dispatch('saveVisualType', value);
-    //   this.$store.dispatch('saveIsSelectVisualType');
-    //   this.selectedOption = ""
-    // },
-    //
-    // isOptionDisabled(optionValue) {
-    //   let regex = /\.(\w+)\(/g;
-    //   let operations = [];
-    //   let match;
-    //   while ((match = regex.exec(this.codeInput)) !== null) {
-    //     operations.push(match[1]);
-    //   }
-    //   let lastOperation = operations[operations.length - 1]
-    //   if(this.extractViewType(this.codeInput)){
-    //     lastOperation = operations[operations.length - 2]
-    //   }
-    //   if (lastOperation==="seq_view") {
-    //     return (optionValue !== 'timeLine' && optionValue !== 'Sankey' && optionValue !== 'Heatmap')
-    //   }
-    //   if (["count","unique_count"].includes(lastOperation)) {
-    //     return (optionValue !== 'barChart' && optionValue !== 'pieChart')
-    //   }
-    // },
-
     // 上传之前判断文件格式
     beforeUpload(file){
       if (file.type != null){
@@ -272,12 +235,6 @@ export default {
     },
 
     executeCode() {
-      let startTime = ""
-      let endTime = ""
-      if (this.dateRange&&(this.dateRange.length === 2)) {
-          startTime  = this.dateRange[0];
-          endTime = this.dateRange[1];
-      }
       if(this.extractSeqViewContent(this.codeInput)){
         const seqEvent = this.extractSeqViewContent(this.codeInput)
         this.$store.dispatch('saveSeqView', seqEvent);
@@ -289,15 +246,13 @@ export default {
       }
 
       // 前端可以直接把最后的操作传给后端 后面再改
-      axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput, startTime:startTime, endTime:endTime })
+      axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput })
           .then(response => {
             // 使用 Vuex action 更新 responseData
             this.$store.dispatch('saveResponseData', response.data);
             this.$store.dispatch('saveCurExpression',this.codeInput);
             this.responseData = response.data;
             this.operation = this.responseData["operation"]
-
-            // console.log("返回的数据",this.responseData)
 
             if(!response.data){
               const codeIndex = this.history.indexOf(this.codeInput);
@@ -310,7 +265,7 @@ export default {
               this.$store.dispatch('saveOriginalTableData', { key: this.codeInput, value: this.responseData['result'] });
             }
             else{
-              axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput.split(".")[0], startTime:startTime, endTime:endTime })
+              axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput.split(".")[0] })
                   .then(response => {
                     const responseData = response.data;
                     this.$store.dispatch('saveOriginalTableData', { key: this.codeInput.split(".")[0], value: responseData['result'] });
@@ -328,7 +283,36 @@ export default {
             }
           });
       if (!this.history.includes(this.codeInput)) {
-        this.history.push(this.codeInput)
+        // 使用match()方法查找所有匹配项
+        const regex = /\.(\w+)\(/g; // 正则表达式，寻找所有的操作
+        const matches = this.codeInput.match(regex);
+
+        let lastOperation = null;
+        if (matches !== null && matches.length > 0) {
+          // 获取最后一个匹配项，并从匹配结果中提取操作名
+          const lastMatch = matches[matches.length - 1];
+          lastOperation = lastMatch.slice(1, lastMatch.indexOf('('));
+        }
+        if(lastOperation==="filter"){
+          // 使用正则表达式匹配所有包含 filter() 的部分
+          const regex = /(?:filter\([^)]*\))(?=\s*\)|$)/g;
+          const matches = this.codeInput.match(regex);
+          if(matches[0]!=='filter()'){
+            this.history.push(this.codeInput)
+          }
+        }
+        else if(lastOperation==="unique_attr"){
+          const regex = /(?:unique_attr\([^)]*\))(?=\s*\)|$)/g;
+          const matches = this.codeInput.match(regex);
+          if(matches[0]!=='unique_attr()'){
+            this.history.push(this.codeInput)
+          }
+        }
+        else{
+          if (this.codeInput.includes("view_type")) {
+            this.history.push(this.codeInput)
+          }
+        }
       }
     },
 
@@ -355,14 +339,16 @@ export default {
 
 <style scoped>
 :deep(.el-tabs__item) {
-  color: grey;
+  color: #666666;
   font-size: 0.8vw;
   background: #eeeeee;
-  border: 2px solid white;
+  //border: 2px solid white;
+  //border-radius: 5px;
 }
 
 :deep(.el-tabs__item.is-active) {
   color: grey;
   background: #f1f9ff;
 }
+
 </style>

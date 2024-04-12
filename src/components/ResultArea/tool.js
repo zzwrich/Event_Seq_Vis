@@ -1,7 +1,6 @@
 import * as d3 from "d3";
 import store from '@/store'
-import * as d3Sankey from "@/components/ResultAtea/d3-sankey/index.js";
-import axios from "axios";
+import {bubbletreemap} from './d3-bubbletreemap.js'
 
 export function exportTableToCSV(containerId, filename) {
     const csv = [];
@@ -43,8 +42,9 @@ export function hexToRgb(hex) {
 }
 // 解析操作类型 暂时默认取首字母!!!
 export function parseAction(action) {
-    return action.split(' ')[0]
-    // return action
+    action = action.toString()
+    // return action.split(' ')[0]
+    return action
 }
 
 function containsSubsequence(sequence, subsequence) {
@@ -71,30 +71,47 @@ function containsPattern(sequence, pattern) {
             if (patternIndex === pattern.length) {
                 return true; // 找到完整模式
             }
-        } else if (patternIndex > 0 && sequenceArray[i] !== pattern[patternIndex]) {
-            // 如果当前元素不匹配，并且已经开始匹配模式，则重置
-            i -= patternIndex;
-            patternIndex = 0;
+        }
+        // 不需要else if部分，移除回溯逻辑
+    }
+    return false; // 循环结束也没找到完整模式
+}
+
+export function findSequencesContainingSubsequence(data, subsequence, isFuzzy) {
+    const matchingSequences = {};
+    const dataToFind = subsequence[0]
+    let foundKey = null; // 用于存储找到的键
+    // 遍历每个顶层键
+    for (let key in data) {
+        let item = data[key];
+        // 然后遍历每个顶层键下的所有子键
+        for (let subKey in item) {
+            let value = item[subKey];
+            // 检查值是否为数组，并且数组中包含"何二"
+            if (Array.isArray(value) && value.includes(dataToFind)) {
+                foundKey = subKey; // 找到匹配项，记录键
+                break; // 退出内层循环
+            }
+        }
+        if (foundKey) {
+            break; // 如果已经找到匹配项，退出外层循环
         }
     }
-    return false;
-}
-export function findSequencesContainingSubsequence(data, subsequence, seqView,isFuzzy) {
-    const matchingSequences = {};
-    Object.keys(data).forEach(user => {
-        const userEvents = data[user][seqView];
+
+    Object.keys(data).forEach((user,index) => {
+        const userEvents = data[user][foundKey];
         let parsedUserEvents = {}
         for (let key in userEvents) {
             parsedUserEvents[key] = parseAction(userEvents[key])
         }
         if(!isFuzzy){
             if (containsSubsequence(parsedUserEvents, subsequence)) {
-                matchingSequences[user] = parsedUserEvents;
+                matchingSequences[index] = parsedUserEvents;
             }
         }
         else{
             if (containsPattern(parsedUserEvents, subsequence)) {
-                matchingSequences[user] = parsedUserEvents;
+                matchingSequences[index] = parsedUserEvents;
             }
         }
     });
@@ -115,7 +132,8 @@ export function generateColorMap(data,seqView) {
     });
     // 为每种操作类型分配颜色
     const colorMap = {};
-    const colorScale = d3.scaleOrdinal(d3.schemeTableau10); // 使用内置的颜色方案
+    const combinedColorScheme = [...d3.schemeTableau10, ...d3.schemeAccent, ...d3.schemePaired, ...d3.schemeCategory10];
+    const colorScale = d3.scaleOrdinal(combinedColorScheme);
     uniqueActionTypes.forEach((actionType, index) => {
         colorMap[actionType] = colorScale(index);
     });
@@ -208,7 +226,7 @@ export function estimateSankeySize(nodes, nodeSpacing) {
     let maxDepth = Math.max(...nodes
         .filter(node => node.name !== "unknown")
         .map(node => {
-        const numbers = node.name.split('*').map(str => parseInt(str, 10));
+        const numbers = node.name.split('@').map(str => parseInt(str, 10));
         return numbers[1];
     }));
 
@@ -252,7 +270,7 @@ export function getKeysByValue(dictionary, sourceValue, targetValue) {
 
 export function findKeyByValue(data, searchValue) {
     for (const key in data) {
-        if (data[key].includes(searchValue)) {
+        if (data[key].some(item => item.includes(searchValue))) {
             return key;
         }
     }
@@ -277,22 +295,14 @@ export function changeGlobalHighlight(d, containerId){
     const originalData = store.state.originalTableData[dataKey]
 
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
-    const childDivs = parentDiv.querySelectorAll('div');
     const allChildDivs = {};
-    // 遍历 children 数组
-    for (let i = 0; i < childDivs.length; i++) {
-        // 获取当前子元素的所有子 div 元素
-        const currentChildDivs = childDivs[i].querySelectorAll('div');
-        // 在当前子元素的子 div 中查找类名为 'chart-container' 的元素
-        for (let j = 0; j < currentChildDivs.length; j++) {
-            const currentDiv = currentChildDivs[j];
-            if (currentDiv.classList.contains('chart-container')) {
-                // 将 'chart-container' 元素的 id 添加到数组中
-                const curDivId = currentDiv.id
-                allChildDivs[curDivId] = document.getElementById(curDivId).getAttribute("codeContext");
-            }
-        }
-    }
+    // 直接选择所有类名为 'chart-container' 的 div 元素
+    const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    // 遍历找到的元素
+    chartContainers.forEach(div => {
+        // 使用元素的 id 作为键，'codeContext' 属性的值作为值
+        allChildDivs[div.id] = div.getAttribute("codeContext");
+    });
     if(store.state.globalHighlight.length===0){
         Object.entries(allChildDivs).forEach(([key, value]) => {
             const myDiv = document.getElementById(key);
@@ -367,22 +377,14 @@ export function changeGlobalMouseover(d, containerId){
     const originalData = store.state.originalTableData[dataKey]
 
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
-    const childDivs = parentDiv.querySelectorAll('div');
     const allChildDivs = {};
-    // 遍历 children 数组
-    for (let i = 0; i < childDivs.length; i++) {
-        // 获取当前子元素的所有子 div 元素
-        const currentChildDivs = childDivs[i].querySelectorAll('div');
-        // 在当前子元素的子 div 中查找类名为 'chart-container' 的元素
-        for (let j = 0; j < currentChildDivs.length; j++) {
-            const currentDiv = currentChildDivs[j];
-            if (currentDiv.classList.contains('chart-container')) {
-                // 将 'chart-container' 元素的 id 添加到数组中
-                const curDivId = currentDiv.id
-                allChildDivs[curDivId] = document.getElementById(curDivId).getAttribute("codeContext");
-            }
-        }
-    }
+    // 直接选择所有类名为 'chart-container' 的 div 元素
+    const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    // 遍历找到的元素
+    chartContainers.forEach(div => {
+        // 使用元素的 id 作为键，'codeContext' 属性的值作为值
+        allChildDivs[div.id] = div.getAttribute("codeContext");
+    });
     if(store.state.globalMouseover.length===0){
         Object.entries(allChildDivs).forEach(([key, value]) => {
             const myDiv = document.getElementById(key);
@@ -465,7 +467,7 @@ export function fillData(originalData, newData) {
     return result;
 }
 
-export function createNodes(isAgg,containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove){
+export function createNodes(isAgg,containerId,container,containerRect,aggSankeyChart,sankeyNodesData,sankeyLinksData,sankeyNodes,sankeyHeads,sankeyTails,sankeyTooltip,seqView,colorMap,sunburstColor,r,hasUsername,data,alignment,userLocation,userMove,aggVis){
     const colorSchemes = [
         d3.schemeSet1, // 第0层（实际使用时可能不会为根节点着色）
         d3.schemePastel1, // 第1层
@@ -492,6 +494,36 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
     }
     const idString='sunburst-node-'
     let trueIndex
+    // 最内层圆形半径
+    let radiusDict={}
+
+    function updateRadiusDict(node) {
+        node.descendants().forEach(d => {
+            const value = d.value; // 使用d.data.value而不是node.value
+            const radius = d.r; // 使用d.r而不是node.r
+            // 检查radiusDict中是否已经有了这个value
+            if (value in radiusDict) {
+                radiusDict[value] = Math.min(radiusDict[value], radius);
+            } else {
+                radiusDict[value] = radius;
+            }
+        });
+    }
+
+    if(isAgg && (aggVis === "气泡树图" || aggVis === "紧凑气泡图")){
+        sankeyNodesData.forEach((nodeData, index) => {
+            const radius = Math.max((nodeData.x1 - nodeData.x0),(nodeData.y1 - nodeData.y0))/r
+            const curData = createHierarchyForTimeLine(nodeData.data,nodeData.name);
+            const curRoot = d3.hierarchy(curData)
+                .sum(d => d.value) // 定义如何计算节点大小
+                .sort((a, b) => b.value - a.value);
+            d3.pack()
+                .size([radius*2, radius*2])
+                .padding(1)
+                (curRoot);
+            updateRadiusDict(curRoot);
+        })
+    }
 
     // 循环遍历 sankeyNodesData
     sankeyNodesData.forEach((nodeData, index) => {
@@ -501,7 +533,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
         if(nodeData.name!=="unknown"){
             let arr
             if(hasUsername){
-                arr = nodeData.name.split("*");
+                arr = nodeData.name.split("@");
                 if(!isAgg){
                     username =  arr[arr.length - 1]
                     trueIndex = arr[arr.length - 2]
@@ -513,7 +545,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                 className = `circle-${username}`
             }
             else{
-                arr = nodeData.name.split("*"); // 使用冒号分割字符串
+                arr = nodeData.name.split("@"); // 使用冒号分割字符串
                 trueIndex = arr[arr.length - 1]
             }
 
@@ -547,7 +579,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         centerY =  userLocation[username]
                     }
                     else{
-                        centerY =  userLocation[nodeData.name.split("*")[0]]
+                        centerY =  userLocation[nodeData.name.split("@")[0]]
                     }
                 }
                 else{
@@ -620,35 +652,198 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         .outerRadius(radius);
                 }
 
-                sankeyNodes = aggSankeyChart.selectAll(`[circleName="${className}"]`)
-                    .data(root.descendants(), (d) => {
-                        if(!isAgg){
-                            return d.data.name}
-                        else{
-                            return d.data.name+'*'+nodeData.name}
-                    })
-                    .enter()
-                    .append('path')
-                    .attr('class', classString)
-                    .attr('id', `${idString}${trueIndex}`)
-                    .attr('circleName', className)
-                    .attr('cx', centerX)
-                    .attr('cy', centerY)
-                    .attr('radius', radius)
-                    .style('cursor','pointer')
-                    .attr("nodeText", nodeData.name)
-                    .attr('transform', `translate(${centerX}, ${centerY})`)
-                    .attr('d', arc)
-                    .style("fill", function(d) {
-                        if(d.depth === 0){return  colorMap[parseAction(arr[0])]}
-                        else{
-                            // return colorMap[d.data.name.split("*")[0]] ? colorMap[d.data.name.split("*")[0]] : colorScale[d.depth](d.data.name.split("*")[0])
-                            return colorMap[d.data.name.split("*")[0]] ? colorMap[d.data.name.split("*")[0]] : '#C0C0C0'
-                        }
-                    })
-                    .attr('fill-opacity', 1)
-                    .on('mouseover', function (e, d) {
-                        if(!isAgg){
+                if(aggVis==="气泡树图"){
+                    const circularRoot = d3.hierarchy(hierarchyData)
+                        .sum(d => d.value) // 定义如何计算节点大小
+                        .sort((a, b) => b.value - a.value);
+                    d3.pack()
+                        .size([radius*2, radius*2])
+                        .padding(1)
+                        (circularRoot);
+
+                    const descendants = circularRoot.descendants(); // 获取所有节点
+                    const nodes = aggSankeyChart.selectAll(`[circleName="${className}"]`)
+                        .data(descendants, (d) => {
+                            if(d.data.name==="root"){
+                                d.data.name="root"+index
+                            }
+                            return d.data.name
+                        })
+                        .enter()
+                        .append("circle")
+                        .attr('class', classString)
+                        .attr('id', `${idString}${trueIndex}`)
+                        .attr('circleName', className)
+                        .attr("fill", d => d.children ? "#fff" : colorMap[parseAction(d.data.name.split("@")[0])])
+                        .attr("fill-opacity", d => d.children ? null : 1)
+                        .attr("stroke", d => d.children ? "#bbb" : null)
+                        .attr("stroke-width", d => {
+                            if (d.children) {
+                                return d.data.name.includes("root")  ? "1px" : "0.4px";
+                            } else {
+                                return null;
+                            }
+                        })
+                        .attr("stroke-opacity", d => d.children ? 1 : null)
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y)
+                        .attr("r", d => {
+                            if(d.data.name.includes("root") || d.children){return d.r}
+                            else{return radiusDict[d.value]}})
+                        .attr('radius', d => {
+                            if(d.data.name.includes("root") || d.children){return d.r}
+                            else{return radiusDict[d.value]}})
+                        .style('cursor','pointer')
+                        .attr("nodeText", nodeData.name)
+                        .attr('transform', `translate(${centerX}, ${centerY-radius})`)
+                    d3.pack()
+                    nodes.on('mouseover', function (e, d) {
+                        if (!(d.data.name.includes("root"))) { // 过滤掉d.data.name包含root的节点
+                            sankeyTooltip.transition()
+                                .duration(200)
+                                .style('opacity', 0.8);
+
+                            let tooltipContent;
+                            if (d.data.value) {
+                                tooltipContent = `${parseAction(d.data.name.split("@")[0])}: <strong>${d.data.value}</strong>`;
+                            } else {
+                                tooltipContent = `${parseAction(d.data.name.split("@")[0])}`;
+                            }
+                            sankeyTooltip.html(tooltipContent)
+                                .style('left', (e.pageX) - containerRect.left + 'px')
+                                .style('top', (e.pageY) - containerRect.top + 'px');
+                            }
+                        })
+                        .on('mouseout', function () {
+                            sankeyTooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        });
+                }
+                else if(aggVis==="紧凑气泡图"){
+                    const hierarchyData= createHierarchy(nodeData.data,nodeData.name);
+
+                    const bubbleRoot = d3.hierarchy(hierarchyData)
+                        .sum(d => radiusDict[d.value]) // 定义如何计算节点大小
+                        .sort((a, b) => b.value - a.value);
+                    const bubble = bubbletreemap()
+                        .padding(1)
+                        .curvature(1)
+                        .hierarchyRoot(bubbleRoot)
+                        .width(radius*2)
+                        .height(radius*2)
+
+                    let hierarchyRoot = bubble.doLayout().hierarchyRoot();
+                    let leafNodes = hierarchyRoot.descendants().filter(function (candidate) {
+                        return !candidate.children;
+                    });
+                    let contourGroup = aggSankeyChart.append("g")
+                        .attr("class", "contour");
+
+                    // Draw circles.
+                    let circleGroup = aggSankeyChart.append("g")
+                        .attr("class", "circlesAfterPlanck");
+
+                    circleGroup.selectAll("circle")
+                        .data(leafNodes, (d) => {
+                            return d.data.name
+                        })
+                        .enter()
+                        .append("circle")
+                        .attr('class', classString)
+                        .attr('id', `${idString}${trueIndex}`)
+                        .attr('circleName', className)
+                        .attr("fill", d => colorMap[parseAction(d.data.name.split("@")[0])])
+                        .attr("fill-opacity", 1)
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y)
+                        .attr("r", d => d.r)
+                        .attr('radius', d => d.r)
+                        .style('cursor','pointer')
+                        .attr("nodeText", nodeData.name)
+                        .attr('transform', `translate(${centerX}, ${centerY-radius})`)
+                        .on('mouseover', function (e, d) {
+                            sankeyTooltip.transition()
+                                .duration(200)
+                                .style('opacity', 0.8);
+
+                            let tooltipContent;
+                            if (d.data.value) {
+                                tooltipContent = `${parseAction(d.data.name.split("@")[0])}: <strong>${d.data.value}</strong>`;
+                            } else {
+                                tooltipContent = `${parseAction(d.data.name.split("@")[0])}`;
+                            }
+                            sankeyTooltip.html(tooltipContent)
+                                .style('left', (e.pageX) - containerRect.left + 'px')
+                                .style('top', (e.pageY) - containerRect.top + 'px');
+                        })
+                        .on('mouseout', function () {
+                            sankeyTooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        });
+
+                    // 创建轮廓路径
+                    contourGroup.selectAll("path")
+                        .data(bubble.getContour())
+                        .enter().append("path")
+                        .attr("d", function(arc) { return arc.d; })
+                        .style("stroke", "#bbb")
+                        .style("stroke-width", function(arc) { return 1; })
+                        .attr("transform", function(arc) {
+                            const matches = arc.transform.match(/-?\d+(\.\d+)?/g);
+                            // 提取出两个数据
+                            const x = parseFloat(matches[0]);
+                            const y = parseFloat(matches[1]);
+                            const newX = x + centerX;
+                            const newY = y + centerY-radius;
+                            // 重新组合成新的字符串
+                            return `translate(${newX},${newY})`})
+                        .on('mouseover', function (e, d) {
+                            if (!(d.name.includes("root"))) {
+                                sankeyTooltip.transition()
+                                    .duration(200)
+                                    .style('opacity', 0.8);
+
+                                const tooltipContent = `${parseAction(d.name.split("@")[0])}`;
+                                sankeyTooltip.html(tooltipContent)
+                                    .style('left', (e.pageX) - containerRect.left + 'px')
+                                    .style('top', (e.pageY) - containerRect.top + 'px');
+                            }
+                        })
+                        .on('mouseout', function () {
+                            sankeyTooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        });
+                }
+
+                else{
+                    // 时间轴旭日图部分
+                    sankeyNodes = aggSankeyChart.selectAll(`[circleName="${className}"]`)
+                        .data(root.descendants(), (d) => {
+                            return d.data.name
+                        })
+                        .enter()
+                        .append('path')
+                        .attr('class', classString)
+                        .attr('id', `${idString}${trueIndex}`)
+                        .attr('circleName', className)
+                        .attr('cx', centerX)
+                        .attr('cy', centerY)
+                        .attr('radius', radius)
+                        .style('cursor','pointer')
+                        .attr("nodeText", nodeData.name)
+                        .attr('transform', `translate(${centerX}, ${centerY})`)
+                        .attr('d', arc)
+                        .style("fill", function(d) {
+                            return colorMap[parseAction(d.data.name.split("@")[0])] ? colorMap[parseAction(d.data.name.split("@")[0])] : '#C0C0C0'
+                        })
+                        .attr('fill-opacity', 1)
+
+                    sankeyNodes
+                        .on('mouseover', function (e, d) {
+                            if(!isAgg){
                             const str = this.id;
                             const parts = str.split("-");
                             let circleId = parts[parts.length - 1]; // 获取最后一个部分
@@ -656,6 +851,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                                 .duration(200)
                                 .style("opacity", .9)
                             let tooltipText
+                            //     时间轴部分
                             if(hasUsername){
                                 let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
                                 // 创建要显示的信息字符串
@@ -673,14 +869,15 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                             }
 
                             else{
-                                if(d.data.name===nodeData.name.split("*")[0]){
-                                    tooltipText = `<p>${d.data.name} <strong>${nodeData.value}</strong></p>`
+                                // 桑基图部分
+                                if(d.data.name===nodeData.name){
+                                    tooltipText = `<p>${d.data.name.split("@")[0]} <strong>${nodeData.value}</strong></p>`
                                 }
                                 else{
                                     if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
-                                        d.data.name = formatDateTime(d.data.name);
+                                        d.data.name = formatDateTime(d.data.name.split("@")[0]);
                                     }
-                                    tooltipText = `<p>${d.data.name}</p>`
+                                    tooltipText = `<p>${d.data.name.split("@")[0]}</p>`
                                 }
                             }
                             sankeyTooltip.html(tooltipText) // 设置提示框的内容
@@ -689,38 +886,39 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                                 .style("width", "auto")
                                 .style("white-space", "nowrap");
                         }
-                        else{
+                            else{
                             sankeyTooltip.transition()
                                 .duration(200)
                                 .style('opacity', 0.8);
 
                             let tooltipContent
                             if(d.data.value){
-                                tooltipContent=`${d.data.name.split("*")[0]}: <strong>${d.data.value}</strong>`
+                                tooltipContent=`${d.data.name.split("@")[0]}: <strong>${d.data.value}</strong>`
                             }
                             else{
-                                tooltipContent=`${d.data.name.split("*")[0]}`
+                                tooltipContent=`${d.data.name.split("@")[0]}`
                             }
                             sankeyTooltip.html(tooltipContent)
                                 .style('left', (e.pageX)-containerRect.left + 'px')
                                 .style('top', (e.pageY)-containerRect.top + 'px');
                         }
-                    })
-                    .on('mouseout', function () {
-                        sankeyTooltip.transition()
-                            .duration(500)
-                            .style("opacity", 0);
-                    });
+                        })
+                        .on('mouseout', function () {
+                            sankeyTooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        });
 
-                if(!isAgg){
-                    // 添加黑色边框
-                    // sankeyNodes.style('stroke', 'grey') // 设置边框颜色为黑色
-                    // .style('stroke-width', '1px') // 设置边框宽度
-                }
-                else{
-                    sankeyNodes
-                        .attr('display', d => d.depth ? null : 'none') // 隐藏根节点
-                        .style('stroke', '#fff') // 设置分隔线颜色
+                    if(!isAgg){
+                        // 添加黑色边框
+                        // sankeyNodes.style('stroke', 'grey') // 设置边框颜色为黑色
+                        // .style('stroke-width', '1px') // 设置边框宽度
+                    }
+                    else{
+                        sankeyNodes
+                            .attr('display', d => d.depth ? null : 'none') // 隐藏根节点
+                            .style('stroke', '#fff') // 设置分隔线颜色
+                    }
                 }
             }
 
@@ -728,30 +926,69 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
     });
 }
 
-export function createHierarchyForTimeLine(data,name) {
+export function createHierarchyForTimeLine(data, name) {
     function transform(node) {
-        // 如果节点是一个数值，表示我们到达了叶子节点，返回其值
+        // 如果节点是一个数值且不为0，表示我们到达了一个有效的叶子节点，返回其值
         if (typeof node === 'number') {
-            return { value: node };
+            return node !== 0 ? { value: node } : null;
         }
 
         // 否则，遍历对象的键值对，构建children数组
-        const children = Object.keys(node).map(key => {
-            return {
-                name: key+"*"+name,
-                ...transform(node[key]) // 递归转换当前节点
-            };
-        });
+        // 使用reduce而不是map来累积非0的节点
+        const children = Object.keys(node).reduce((acc, key) => {
+            const transformedNode = transform(node[key]);
+            if (transformedNode) { // 确保不添加值为0的节点
+                acc.push({
+                    name: key + "@" + name,
+                    ...transformedNode // 递归转换当前节点
+                });
+            }
+            return acc;
+        }, []);
 
-        return { children };
+        // 如果children为空，意味着所有子节点的值都是0，这种情况下返回null
+        return children.length > 0 ? { children } : null;
     }
 
-    // 开始转换，假设最顶层的"name"是"root"
     return {
         name: "root",
         ...transform(data)
     };
 }
+
+// 紧凑气泡图的数据
+export function createHierarchy(data,name) {
+    // Helper function to transform each entry
+    function transform(entry) {
+        // Convert each entry to the desired format
+        const result = Object.keys(entry).map(key => {
+            // Check if the value is a number (leaf node)
+            if (typeof entry[key] === 'number') {
+                return {
+                    name: key + "@" + name,
+                    value: entry[key],
+                    uncertainty: 0 // Assuming uncertainty is the same as value
+                };
+            }
+            // Otherwise, it's an object with further mappings
+            else {
+                return {
+                    name: key + "@" + name,
+                    children: transform(entry[key]), // Recursively transform
+                    uncertainty: 0 // Placeholder, adjust as necessary
+                };
+            }
+        });
+        return result;
+    }
+
+    return {
+        name: "root", // Root node name
+        children: transform(data), // Transform the input data into a hierarchy
+        uncertainty: 0 // Placeholder for root uncertainty
+    };
+}
+
 
 export function createHierarchyData(data) {
     function transform(node) {
@@ -874,13 +1111,6 @@ export function groupData(data) {
     return nestedData;
 }
 
-//用于获取被brush的数据
-export function changeInteractive(key,value){
-    store.state.interactionData = {}
-    store.commit('setInteractionData',{ key:key,value:value })
-
-}
-
 // 给当前的交互矩形块绑定表达式信息
 export function getRulesForInteractive(filters,containerId){
     const myDiv =  document.getElementById(containerId)
@@ -934,3 +1164,5 @@ export function getRulesForInteractive(filters,containerId){
     myDiv.setAttribute("mouseoverCodeContext", modifiedString);
     return modifiedString
 }
+
+

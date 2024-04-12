@@ -1,12 +1,21 @@
 <template>
   <div class="container">
-    <div class="data">Data:</div>
-    <div class="view">View:</div>
+    <div class="data" id="word">Data:</div>
     <div class="myLine"></div>
-    <el-button @click="clearAll" style="position:absolute;right: 1%;top: 10px;z-index: 1;width: 5%;height: 15%;font-size: 2%">Clear All</el-button>
-    <el-button @click="deleteNode(this.currentNode)" style="position:absolute;right: 7%;top: 10px;z-index: 1;width: 7%;height: 15%;font-size: 2%">Delete Node</el-button>
-    <el-button @click="showAll" style="position:absolute;right: 15%;top: 10px;z-index: 1;width: 5%;height: 15%;font-size: 2%">Show All</el-button>
-    <el-button @click="importExample" style="position:absolute;right: 21%;top: 10px;z-index: 1;width: 5%;height: 15%;font-size: 2%">Sample</el-button>
+    <div class="view" id="word">View:</div>
+    <div class="myLine2"></div>
+    <div class="intermedia" id="word">Intermedia:</div>
+    <div style="position: absolute;right: 0">
+      <!--    <el-button @click="deleteNode(this.currentNode)" style="position:absolute;right: 7%;top: 10px;z-index: 1;width: 7%;height: 10%;font-size: 2%">Delete Node</el-button>-->
+      <img src="../../assets/deleteNode.svg" alt="Image"  @click="deleteNode(this.currentNode)" class="nodeImg"/>
+      <!--    <el-button @click="clearAll" style="position:absolute;right: 1%;top: 10px;z-index: 1;width: 5%;height: 10%;font-size: 2%">-->
+      <!--    </el-button>-->
+      <img src="../../assets/clearAll.svg" alt="Image"  @click="clearAll" class="nodeImg"/>
+      <!--    <el-button @click="showAll" style="position:absolute;right: 15%;top: 10px;z-index: 1;width: 5%;height: 10%;font-size: 2%">Show All</el-button>-->
+      <img src="../../assets/showAll.svg" alt="Image"  @click="showAll" class="nodeImg"/>
+      <!--    <el-button @click="importExample" style="position:absolute;right: 21%;top: 10px;z-index: 1;width: 5%;height: 10%;font-size: 2%">Sample</el-button>-->
+      <img src="../../assets/template.svg" alt="Image"  @click="importExample" class="nodeImg"/>
+    </div>
     <div class="workflowArea" id="workflowContainer"></div>
   </div>
   <pop-up
@@ -20,6 +29,17 @@
       :checkbox-options="checkboxOptions"
       :img-list="popupVisImg"
       @close="closeHandler"/>
+  <event-pop-up
+      :left="eventPopupLeft"
+      :top="eventPopupTop"
+      :visible="eventPopupVisible"
+      @close="closeEventHandler"/>
+  <event-data-pop-up
+      :left="eventDataPopupLeft"
+      :top="eventDataPopupTop"
+      :visible="eventDataPopupVisible"
+      :event-list="eventDataList"
+      @close="closeEventDataHandler"/>
 </template>
 
 <script>
@@ -29,12 +49,21 @@ import dagreD3 from 'dagre-d3';
 import store from "@/store/index.js";
 import "./style.css"
 import popUp from './popUp.vue';
+import eventPopUp from './eventPopUp.vue';
+import eventDataPopUp from "./eventData.vue";
 import axios from "axios";
-import {addParameter, enhanceFilterExpression, getNodePosition} from "@/components/OperArea/tool.js";
+import {
+  addParameter,
+  enhanceFilterExpression,
+  enhanceFilterTimeExpression,
+  getNodePosition
+} from "@/components/OperArea/tool.js";
 
 export default {
   components: {
-    popUp
+    popUp,
+    eventPopUp,
+    eventDataPopUp
   },
   data() {
     return {
@@ -75,6 +104,17 @@ export default {
       filterExpression: {},
       //当前的交互矩形块id,
       interactiveNodeId: "",
+      // 事件对弹窗
+      eventPopupLeft: 0,
+      eventPopupTop: 0,
+      eventPopupVisible: false,
+      // 显示信息
+      eventDataPopupLeft: 0,
+      eventDataPopupTop: 0,
+      eventDataPopupVisible: false,
+      eventDataList: [],
+      // 记录上一次的事件分析数据长度
+      lastLength: 0
     };
   },
   computed: {
@@ -205,59 +245,130 @@ export default {
     },
     interactionData: {
       handler(newVal) {
-        const svg = d3.select(".innerArea")
-        const nodeId=Object.keys(newVal)[0]
-        const value = newVal[nodeId]
-        const expression = value["expression"]
-        const curNode = this.graph.node(nodeId);
-        let text = curNode.label
-        const element = svg.select("#" + "interactiveRect" + text +"1"); // 使用CSS选择器语法查找ID
-        const positionX=curNode.x;
-        let positionY
+        if(!(Object.keys(newVal).length === 0)){
+          const svg = d3.select(".innerArea")
+          const nodeId=Object.keys(newVal)[0]
+          const value = newVal[nodeId]
+          const length = value["expression"].length
+          // 如果是移除的情况，则不添加新的数据块
+          if(length>=this.lastLength){
+            this.lastLength = length
+            const expression = value["expression"][length-1]
+            const eventData = value["data"][length-1]
+            const curNode = this.graph.node(nodeId);
+            let text = curNode.label
+            const positionX=curNode.x;
+            let positionY
+            let outerRect
 
-        if (!element.empty()) {
-          positionY = curNode.y + curNode.height*2 +15;
-          text = text+"2"
-        } else {
-          positionY = curNode.y + curNode.height +10;
-          text=text+"1"
+            const width = curNode.width
+            const height = curNode.height
+
+            const element1 = svg.select("#" + "interactiveRect" + text +"1");
+            const element2 = svg.select("#" + "interactiveRect" + text +"2");
+            let textId, outerY
+            const padding =12
+            const outerX =positionX - width / 2 - padding;
+
+            if (element1.empty()) {
+              positionY = curNode.y + curNode.height +25;
+              textId=text+"1"
+              if(!element2.empty()){
+                outerY = element2.attr("y") - padding/2- curNode.height-5
+                createOuterRect.call(this, outerX, outerY);
+              }
+            } else {
+              positionY = curNode.y + curNode.height*2 +30;
+              textId = text+"2"
+              if(!element1.empty()){
+                outerY = positionY - padding/2- curNode.height-5
+                createOuterRect.call(this, outerX, outerY);
+              }
+            }
+
+            function createOuterRect(outerX, outerY){
+              const outerWidth =width + padding * 2
+              const outerHeight = height * 2+ 5 + padding
+              const self = this; // 保存this的引用
+              // 如果有两个事件对，那么就可以进行event-pair操作 添加外框
+              outerRect = svg.append("rect")
+                  .attr("class","outerRect")
+                  .attr("x", outerX) // 使外框稍微大一点，向左移动
+                  .attr("y", outerY) // 使外框稍微大一点，向上移动
+                  .attr("width", outerWidth) // 增加外框的宽度
+                  .attr("height", outerHeight) // 增加外框的高度
+                  .attr("rx", 5) // 可以为外框也设置圆角
+                  .attr("ry", 5)
+                  .style("fill", "transparent")
+                  .style("stroke", "grey") // 设置外框的颜色
+                  .style("stroke-width", 1.5) // 设置外框的线条宽度
+                  .style("stroke-dasharray", ("3, 3"))
+                  .style("cursor","pointer")
+                  .on("click", function() {
+                    self.eventPopupLeft = outerX + outerWidth +80;
+                    self.eventPopupTop = outerY +10;
+                    self.eventPopupVisible = true
+                    self.eventDataList= eventData
+                  });
+              outerRect.lower()
+            }
+
+            const interactiveRect = svg.append("rect")
+                .attr("x", positionX-width/2) // 矩形左上角的x坐标
+                .attr("y", positionY) // 矩形左上角的y坐标
+                .attr("width", width) // 矩形的宽度
+                .attr("height", height) // 矩形的高度
+                .attr("rx", 5) // 圆角的x半径
+                .attr("ry", 5) // 圆角的y半径
+                .attr('id', `${"interactiveRect"+textId}`)
+                .attr('class',"interactiveRect")
+                .style("cursor","pointer")
+                .style("fill", "transparent")
+                .style("stroke", "grey")
+                .style("stroke-width", 1.5)
+                .style("stroke-dasharray", ("3, 3"))
+                .on("click", () => {
+                  this.addNode(text,expression)
+                  interactiveRect.remove()
+                  textElem.remove()
+                  d3.select(".outerRect").remove()
+                  const indexToRemove = newVal[nodeId]["expression"].indexOf(expression);
+                  if (indexToRemove !== -1) {
+                    store.state.interactionData[nodeId]["data"].splice(indexToRemove, 1);
+                    store.state.interactionData[nodeId]["expression"].splice(indexToRemove, 1);
+                  }
+                });
+
+            // 添加文字
+            const textElem = svg.append('text')
+                .attr('x', positionX)
+                .attr('y', positionY+height / 2+3)
+                .attr('text-anchor', 'middle')
+                .attr('class',"textElem")
+                .text(textId)
+                .style("fill", "grey")
+                .style("font-size", "60%")
+                .style("font-weight", "bold")
+                .style("cursor","pointer")
+                .on("click", () => {
+                  this.eventDataPopupLeft = positionX +width;
+                  this.eventDataPopupTop = positionY +10;
+                  this.eventDataPopupVisible = true
+                  this.eventDataList= eventData
+                })
+
+            interactiveRect.raise(); // 将interactiveRect提升到最高层级
+            textElem.raise()
+          }
         }
-
-        const width = curNode.width
-        const height = curNode.height
-
-        const interactiveRect = svg.append("rect")
-            .attr("x", positionX-width/2) // 矩形左上角的x坐标
-            .attr("y", positionY) // 矩形左上角的y坐标
-            .attr("width", width) // 矩形的宽度
-            .attr("height", height) // 矩形的高度
-            .attr("rx", 5) // 圆角的x半径
-            .attr("ry", 5) // 圆角的y半径
-            .attr('id', `${"interactiveRect"+text}`)
-            .attr('class',"interactiveRect")
-            .style("cursor","pointer")
-            .style("fill", "transparent")
-            .style("stroke", "grey")
-            .style("stroke-width", 2)
-            .style("stroke-dasharray", ("3, 3"))
-            .on("click", () => {
-              this.addNode(text,expression)
-              // interactiveRect.remove()
-              interactiveRect.style('display','none')
-              textElem.style('display','none')
-            });
-
-        // 添加文字
-        const textElem = svg.append('text')
-            .attr('x', positionX)
-            .attr('y', positionY+height / 2+3)
-            .attr('text-anchor', 'middle')
-            .text(text)
-            .style("fill", "grey")
-            .style("font-size", "60%")
-            .style("font-weight", "bold");
+        else{
+          d3.selectAll(".outerRect").remove()
+          d3.selectAll(".interactiveRect").remove()
+          d3.selectAll(".textElem").remove()
+          this.lastLength = 0
+        }
       },
-      deep: true
+      deep: true,
     }
 },
   mounted() {
@@ -267,6 +378,14 @@ export default {
     closeHandler() {
       // 关闭弹窗的逻辑
       this.popupVisible = false; // 将弹窗状态设置为不可见
+    },
+    closeEventHandler() {
+      // 关闭弹窗的逻辑
+      this.eventPopupVisible = false; // 将弹窗状态设置为不可见
+    },
+    closeEventDataHandler() {
+      // 关闭弹窗的逻辑
+      this.eventDataPopupVisible = false; // 将弹窗状态设置为不可见
     },
     onNodePositionChange() {
       // 重新计算路径
@@ -305,12 +424,12 @@ export default {
       this.addNode(store.state.sheetName);
       this.$store.dispatch('clearCurExpression');
       this.$store.dispatch('saveSelectedOperator',"");
-      this.handleNodeClick(this.currentNode);
       this.showOperator(this.currentNode,"group by");
-      this.handleNodeClick(this.currentNode);
       this.updateNodeWithSquare(this.currentNode, store.state.sheetData[0]);
-      this.showOperator(this.currentNode,"count");
-      this.handleNodeClick(this.currentNode);
+      store.commit('setSelectedOperator',"view type")
+      this.showOperator(this.currentNode,"view type");
+      this.AddViewType(this.currentNode, "timeLine");
+      this.handleNodeClick(this.currentNode)
     },
 
     showAll(){
@@ -327,10 +446,9 @@ export default {
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
-      const ranksep = 0.15*containerHeight
-      const nodeseq = 0.05*containerWidth
+      const ranksep = 0.08*containerHeight
       // 初始化图形设置
-      this.graph.setGraph({ rankdir: 'TB', edgesep: 5, ranksep: ranksep, nodeseq:nodeseq });
+      this.graph.setGraph({ rankdir: 'TB', edgesep: 5, ranksep: ranksep,  nodesep: 40, });
       // 设置 SVG 和渲染器
       const offsetX = 0.05*containerWidth; // 水平偏移量
       const offsetY = 0.26*containerHeight; // 垂直偏移量
@@ -377,7 +495,7 @@ export default {
       else nodeClass = newNodeId
       if(data === " "){
         this.graph.setNode(newNodeId, { label: data, id:newNodeId, class:nodeClass,
-          style:"fill:#91b3d0;cursor:pointer",
+          style:"fill:#a3c0d7;cursor:pointer",
           height: rectHeight,
           width:rectWidth,
           rx: 10,
@@ -385,7 +503,7 @@ export default {
       }
       else{
         this.graph.setNode(newNodeId, { label: data, id:newNodeId,class:nodeClass,
-          style:"fill:#6cc7b4;cursor:pointer",
+          style:"fill:#A9A9A9;cursor:pointer",
           height: rectHeight,
           rx: 10,
           ry:10,
@@ -399,7 +517,7 @@ export default {
       this.edges.push({ source: source, target: target, label: operation });
       if (["view type"].includes(this.selectedOperator)) {
         this.graph.setEdge(source, target, { label: operation,class:"mypath",
-          style: "fill:none;stroke:grey;stroke-width:2px",
+          style: "fill:none;stroke:grey;stroke-width:1.5px",
           labelStyle: "fill:transparent;font-weight:bold;font-size:80%",
           arrowhead:"undirected",
           arrowheadStyle:"fill:grey;" });
@@ -425,7 +543,7 @@ export default {
             .attr('d', d => this.calculateArcPath(this.graph.node(d.source), this.graph.node(d.target)))
             .attr('stroke', 'grey')
             .attr('fill', 'none')
-            .attr('stroke-width', 2)
+            .attr('stroke-width', 1.5)
             .attr("id", d => `${d.source}-${d.target}`)
             .attr('marker-end', 'url(#vee-arrowhead)');  // 使用 V 形箭头标记
         // 处理删除的元素
@@ -528,81 +646,81 @@ export default {
           // 移出事件的处理逻辑
           svg.selectAll('.mylink')
               .style('stroke', 'grey')
-              .style('stroke-width', 2);
+              .style('stroke-width', 1.5);
         });
       });
     },
 
     createPopUp(completePath){
-  // 筛选出包含 'operation' 键的对象，并提取其值
-  const operationsArray = completePath
-      .filter(item => item.operator) // 筛选出含有 'operator' 键的对象
-      .map(item => item.operator); // 提取这些对象的 'operator' 键的值
+      // 筛选出包含 'operation' 键的对象，并提取其值
+      const operationsArray = completePath
+          .filter(item => item.operator) // 筛选出含有 'operator' 键的对象
+          .map(item => item.operator); // 提取这些对象的 'operator' 键的值
 
-  const operaLength = operationsArray.length
-  const lastOperation = operationsArray[operaLength-1]
+      const operaLength = operationsArray.length
+      const lastOperation = operationsArray[operaLength-1]
 
-  store.dispatch('saveSelectedOperator', lastOperation);
+      store.dispatch('saveSelectedOperator', lastOperation);
 
-  const codeContext = store.state.curExpression
-  const [dataKey] = codeContext.split(".");
-  const originalData = store.state.originalTableData[dataKey]
-  const allKeys = Object.keys(originalData)
-  if(lastOperation==="filter"){
-    const uniqueProperties = {};// 遍历对象的每个键
-    Object.keys(originalData).forEach(key => {
-      if(!key.includes("时间")){
-        const uniqueValues = new Set(originalData[key]);
-        // 将 Set 转换为数组并存储在结果对象中
-        uniqueProperties[key] = Array.from(uniqueValues);
-      }
-    });
-    this.displayParam = "filter"
-    this.checkboxOptions = uniqueProperties
-  }
-  else if(lastOperation==="unique_count"){
-    this.displayParam = "unique_count"
-    this.popupParam = allKeys
-  }
-  else{
-    this.displayParam = "else"
-    this.popupParam = allKeys
-  }
-  if(lastOperation!=="view_type"){
-    // 获取下一步可能的操作和可视化构型
-    axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: operationsArray})
-        .then(response => {
-          const operationList = response.data["operationList"]
-          const visualizationList = response.data["visualizationList"]
-          this.popupOperation=operationList
-          this.popupVisualization=visualizationList
-          this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
-          if(lastOperation==="group_by"||lastOperation==="flatten"){
-            const groupNum = operationsArray.filter(item => item === "group_by").length;
-            const flattenNum = operationsArray.filter(item => item === "flatten").length;
-            // 计算group_by和flatten的数量差
-            const diff = groupNum - flattenNum
-            // 检查是否以count/unique_count结束
-            if (diff === 1){
-              this.popupVisualization.push("barChart", "pieChart")
-              this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
-            }
-            else if (diff > 1){
-              this.popupVisualization.push("sunBurst")
-              this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
-            }
+      const codeContext = store.state.curExpression
+      const [dataKey] = codeContext.split(".");
+      const originalData = store.state.originalTableData[dataKey]
+      const allKeys = Object.keys(originalData)
+      if(lastOperation==="filter"){
+        const uniqueProperties = {};// 遍历对象的每个键
+        Object.keys(originalData).forEach(key => {
+          if((!key.includes("时间"))||(!key.includes("time"))){
+            const uniqueValues = new Set(originalData[key]);
+            // 将 Set 转换为数组并存储在结果对象中
+            uniqueProperties[key] = Array.from(uniqueValues);
           }
-          this.popupVisible = true;
-        })
-        .catch(error => {
-          this.popupVisible = true;
-          console.error(error);
         });
-  }
-  else{
-    this.popupVisible = false;
-  }
-},
+        this.displayParam = "filter"
+        this.checkboxOptions = uniqueProperties
+      }
+      else if(lastOperation==="unique_count"){
+        this.displayParam = "unique_count"
+        this.popupParam = allKeys
+      }
+      else{
+        this.displayParam = "else"
+        this.popupParam = allKeys
+      }
+      if(lastOperation!=="view_type"){
+        // 获取下一步可能的操作和可视化构型
+        axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: operationsArray})
+            .then(response => {
+              const operationList = response.data["operationList"]
+              const visualizationList = response.data["visualizationList"]
+              this.popupOperation=operationList
+              this.popupVisualization=visualizationList
+              this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
+              if(lastOperation==="group_by"||lastOperation==="flatten"){
+                const groupNum = operationsArray.filter(item => item === "group_by").length;
+                const flattenNum = operationsArray.filter(item => item === "flatten").length;
+                // 计算group_by和flatten的数量差
+                const diff = groupNum - flattenNum
+                // 检查是否以count/unique_count结束
+                if (diff === 1){
+                  this.popupVisualization.push("barChart", "pieChart")
+                  this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
+                }
+                else if (diff > 1){
+                  this.popupVisualization.push("sunBurst")
+                  this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
+                }
+              }
+              this.popupVisible = true;
+            })
+            .catch(error => {
+              this.popupVisible = true;
+              console.error(error);
+            });
+      }
+      else{
+        this.popupVisible = false;
+      }
+    },
 
     // 处理节点点击事件的逻辑
     handleNodeClick(nodeId) {
@@ -628,11 +746,21 @@ export default {
       let pathToNode = this.findPath('node0', nodeId);
       const nodes = pathToNode.nodes
       const edges = pathToNode.edges
-      const completePath = this.createCompletePaths(nodes, edges)
+      // 筛选出标签为"filter"的边，并提取这些边的target属性
+      const targets = edges.filter(link => link.label === "filter").map(link => link.target);
+
+      const filterTargets = targets.sort((a, b) => {
+        // 提取出数字部分进行比较
+        const numberA = parseInt(a.replace("node", ""), 10);
+        const numberB = parseInt(b.replace("node", ""), 10);
+        return numberA - numberB;
+      });
+      let completePath = this.createCompletePaths(nodes, edges)
 
       if(completePath.length!==0){
         // 初始状态，还没有进行任何操作
         if(typeof(completePath)=="string"){
+          // this.filterExpression = {}
           this.$store.dispatch('saveCurExpression',completePath);
           this.popupParam = []
           // 获取下一步可能的操作和可视化构型
@@ -651,6 +779,16 @@ export default {
               });
         }
         else{
+          let filterCount = 0;
+          // 遍历数据，记录每个operator为filter的数据项是第几次出现
+          completePath = completePath.map((item, index) => {
+            // 如果当前项的operator是filter
+            if (item.operator === 'filter') {
+              filterCount += 1; // 增加计数
+              return { ...item, occurrence: filterCount }; // 返回当前项并附加出现次数
+            }
+            return item; // 如果当前项不是operator为filter的项，则原样返回
+          });
           completePath.forEach((item,index) => {
             // 获取对象的键和值
             let key = Object.keys(item)[0];
@@ -664,18 +802,30 @@ export default {
             else if(key === "parameter"){
               const lastIndex = index-1
               const lastKey = Object.keys(completePath[lastIndex])[0];
-              const lastValue = completePath[index-1][lastKey];
+              const lastValue = completePath[lastIndex][lastKey];
               //更新表达式
               const curExpression = this.$store.state.curExpression
               let newExpression = addParameter(curExpression, value)
               if(lastValue==="filter"){
                 if(value!=="time"){
-                  if(this.filterExpression.hasOwnProperty(lastIndex.toString())){
-                    newExpression = this.filterExpression[lastIndex];
+                  const filterNodeId = filterTargets[completePath[lastIndex]["occurrence"]-1]
+                  if(this.filterExpression.hasOwnProperty(filterNodeId)){
+                    newExpression = this.filterExpression[filterNodeId];
                   }
                   else{
                     newExpression = enhanceFilterExpression(newExpression, this.filterParam);
-                    this.filterExpression[lastIndex.toString()] = newExpression
+                    this.filterExpression[filterNodeId] = newExpression
+                  }
+                }
+                else{
+                  const filterNodeId = filterTargets[completePath[lastIndex]["occurrence"]-1]
+                  if(this.filterExpression.hasOwnProperty(filterNodeId)){
+                    newExpression = this.filterExpression[filterNodeId];
+                  }
+                  else{
+                    const insert_template = "filterTimeRange('{startTime}','{endTime}')"
+                    newExpression = enhanceFilterTimeExpression(newExpression, insert_template, this.filterParam[0], this.filterParam[1]).replace('.filter("time")', '');
+                    this.filterExpression[filterNodeId] = newExpression
                   }
                 }
               }
@@ -689,73 +839,71 @@ export default {
           this.createPopUp(completePath)
         }
       }
-      else{
-        if(className!==clickNode.id){
-          this.interactiveNodeId = clickNode.id
-          this.$store.dispatch('saveCurExpression',className);
-          this.popupParam = []
-          // 获取下一步可能的操作和可视化构型
-          axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
-              .then(response => {
-                const operationList = response.data["operationList"]
-                const visualizationList = response.data["visualizationList"]
-                this.popupOperation=operationList
-                this.popupVisualization=visualizationList
-                // 使用数组过滤方法来筛选保留符合条件的图片
-                this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
-                this.popupVisible = true;
-              })
-              .catch(error => {
-                console.error(error);
-              });
-        }
-        else{
-          let pathToNode = this.findPath(this.interactiveNodeId, nodeId);
-          const curInteractiveNode = this.graph.node(this.interactiveNodeId);
-          const originalExpression = curInteractiveNode.class
-          const nodes = pathToNode.nodes
-          const edges = pathToNode.edges
-          const completePath = this.createCompletePaths(nodes, edges)
-          console.log("呵呵呵完整路径",completePath)
-          completePath.forEach((item,index) => {
-            // 获取对象的键和值
-            let key = Object.keys(item)[0];
-            let value = item[key];
-            if(key === "node"){
-              this.$store.dispatch('saveCurExpression',originalExpression);
-            }
-            else if(key === "operator"){
-              this.$store.dispatch('saveCurExpression',this.$store.state.curExpression + '.' + value + "()");
-            }
-            else if(key === "parameter"){
-              const lastIndex = index-1
-              const lastKey = Object.keys(completePath[lastIndex])[0];
-              const lastValue = completePath[index-1][lastKey];
-              //更新表达式
-              const curExpression = this.$store.state.curExpression
-              let newExpression = addParameter(curExpression, value)
-              if(lastValue==="filter"){
-                if(value!=="time"){
-                  if(this.filterExpression.hasOwnProperty(lastIndex.toString())){
-                    newExpression = this.filterExpression[lastIndex];
-                  }
-                  else{
-                    newExpression = enhanceFilterExpression(newExpression, this.filterParam);
-                    this.filterExpression[lastIndex.toString()] = newExpression
-                  }
-                }
-              }
-              this.$store.dispatch('saveCurExpression',newExpression);
-              if(lastValue==="view_type"){
-                this.$store.dispatch('saveVisualType', value);
-                this.$store.dispatch('saveNodeId', nodeId);
-              }
-            }
-          });
-          this.createPopUp(completePath)
-        }
-      }
-
+      // else{
+      //   if(className!==clickNode.id){
+      //     this.interactiveNodeId = clickNode.id
+      //     this.$store.dispatch('saveCurExpression',className);
+      //     this.popupParam = []
+      //     // 获取下一步可能的操作和可视化构型
+      //     axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
+      //         .then(response => {
+      //           const operationList = response.data["operationList"]
+      //           const visualizationList = response.data["visualizationList"]
+      //           this.popupOperation=operationList
+      //           this.popupVisualization=visualizationList
+      //           // 使用数组过滤方法来筛选保留符合条件的图片
+      //           this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
+      //           this.popupVisible = true;
+      //         })
+      //         .catch(error => {
+      //           console.error(error);
+      //         });
+      //   }
+      //   else{
+      //     let pathToNode = this.findPath(this.interactiveNodeId, nodeId);
+      //     const curInteractiveNode = this.graph.node(this.interactiveNodeId);
+      //     const originalExpression = curInteractiveNode.class
+      //     const nodes = pathToNode.nodes
+      //     const edges = pathToNode.edges
+      //     const completePath = this.createCompletePaths(nodes, edges)
+      //     completePath.forEach((item,index) => {
+      //       // 获取对象的键和值
+      //       let key = Object.keys(item)[0];
+      //       let value = item[key];
+      //       if(key === "node"){
+      //         this.$store.dispatch('saveCurExpression',originalExpression);
+      //       }
+      //       else if(key === "operator"){
+      //         this.$store.dispatch('saveCurExpression',this.$store.state.curExpression + '.' + value + "()");
+      //       }
+      //       else if(key === "parameter"){
+      //         const lastIndex = index-1
+      //         const lastKey = Object.keys(completePath[lastIndex])[0];
+      //         const lastValue = completePath[index-1][lastKey];
+      //         //更新表达式
+      //         const curExpression = this.$store.state.curExpression
+      //         let newExpression = addParameter(curExpression, value)
+      //         if(lastValue==="filter"){
+      //           if(value!=="time"){
+      //             if(this.filterExpression.hasOwnProperty(lastIndex.toString())){
+      //               newExpression = this.filterExpression[lastIndex];
+      //             }
+      //             else{
+      //               newExpression = enhanceFilterExpression(newExpression, this.filterParam);
+      //               this.filterExpression[lastIndex.toString()] = newExpression
+      //             }
+      //           }
+      //         }
+      //         this.$store.dispatch('saveCurExpression',newExpression);
+      //         if(lastValue==="view_type"){
+      //           this.$store.dispatch('saveVisualType', value);
+      //           this.$store.dispatch('saveNodeId', nodeId);
+      //         }
+      //       }
+      //     });
+      //     this.createPopUp(completePath)
+      //   }
+      // }
 
       this.$store.dispatch('saveIsSelectNode');
       if (!this.pathData[store.state.curExpression]){
@@ -821,10 +969,10 @@ export default {
       this.nodes.forEach(n => {
         const oldNode = this.graph.node(n.id);
         if(n.id!=="node0"){
-          this.graph.setNode(n.id, {...oldNode, style: "fill:#91b3d0;cursor:pointer"}); // 重置为原始样式
+          this.graph.setNode(n.id, {...oldNode, style: "fill:#a3c0d7;cursor:pointer"}); // 重置为原始样式
         }
         else{
-          this.graph.setNode(n.id, {...oldNode, style: "fill:#6cc7b4;cursor:pointer"}); // 重置为原始样式
+          this.graph.setNode(n.id, {...oldNode, style: "fill:#A9A9A9;cursor:pointer"}); // 重置为原始样式
         }
       })
       this.graph.setNode(node.id, {...node, style: "fill:#e47470;cursor:pointer;"});
