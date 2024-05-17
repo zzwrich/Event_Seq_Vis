@@ -24,7 +24,27 @@
     <img src="../../assets/cancelFilter.svg" alt="Image"  class="tool-image" @click="cancelFilter"/>
     <img src="../../assets/reset.svg" alt="Image"  class="tool-image" @click="reset"/>
   </div>
-
+  <div class="colormap" id="divBlock" style='width: 46%'>
+    <span class="module-color">ColorMap</span>
+    <el-select v-model="selected" placeholder="Color By"
+               style="border: none;top: 22%;width: 100%;background:none;left: 3%;"
+               size="small" @change="handleSelectChange">
+      <el-option
+          v-for="item in colorOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value">
+      </el-option>
+    </el-select>
+  </div>
+  <div class="colormap" id="divBlock" style="width: 46%;left: 51.5%">
+    <span class="module-color">Support</span>
+    <div class="support-container">
+      <input id="support-input" class="el-input" type="text" placeholder="" v-model="inputSupport">
+      <el-button id="submit-button" @click="clickSupport">Min Support:</el-button>
+      <span class="percent-label">%</span>
+    </div>
+  </div>
   <div class="history" id="divBlock">
     <span class="module-title">Code</span>
     <div class="historyPanel">
@@ -36,33 +56,6 @@
         </li>
       </ul>
     </div>
-<!--    <el-tabs v-model="activeTab" @tab-click="handleTabClick" type="card" stretch="stretch">-->
-<!--      &lt;!&ndash; 历史查询面板 &ndash;&gt;-->
-<!--      <el-tab-pane label="Code" name="history" style="border-radius: 5px">-->
-<!--        <div class="historyPanel">-->
-<!--          <el-input v-model="searchText" placeholder="Search code" prefix-icon="Search" class="searchBox"></el-input>-->
-<!--          <ul class="historyList">-->
-<!--            <li v-for="(item, index) in filteredHistory" :key="index" @click="selectHistory(item)" class="historyItem">-->
-<!--              {{ item }}-->
-<!--              <el-button @click.stop="deleteHistory(index)" type="text" class="deleteBtn" style="font-size: 2%;">Delete</el-button>-->
-<!--            </li>-->
-<!--          </ul>-->
-<!--        </div>-->
-<!--      </el-tab-pane>-->
-<!--      &lt;!&ndash; 异常序列记录面板 &ndash;&gt;-->
-<!--      <el-tab-pane label="Anomaly" name="anomalies">-->
-<!--        <el-collapse v-model="activeCollapse" style="border-radius: 5px">-->
-<!--          <el-collapse-item v-for="(sequence, index) in unusualSequences" :key="index" :title="'Sequence ' + (index + 1)"  @click="selectSequence(sequence)">-->
-<!--            <ul>-->
-<!--              <li v-for="(statement, stmtIndex) in sequence" :key="stmtIndex" >-->
-<!--                {{ statement }}-->
-<!--              </li>-->
-<!--            </ul>-->
-<!--            <el-button type="danger" size="small" @click="removeSequence(index)">Delete</el-button>-->
-<!--          </el-collapse-item>-->
-<!--        </el-collapse>-->
-<!--      </el-tab-pane>-->
-<!--    </el-tabs>-->
   </div>
   <DataBlock :tableData="responseFileData" />
   <div >
@@ -80,7 +73,7 @@ import "./style.css"
 import { mapState } from 'vuex';
 import store from "@/store/index.js";
 import {Upload} from "@element-plus/icons-vue";
-import * as d3 from "d3";
+
 export default {
   components:{
     Upload,
@@ -103,7 +96,11 @@ export default {
       // 导航栏
       activeTab: 'history',
       unusualSequences: [],
-      isAddHistory :false
+      isAddHistory :false,
+      colorOptions: [],
+      colormapData: [],
+      selected: '',
+      inputSupport: ""
     };
   },
   computed: {
@@ -113,7 +110,8 @@ export default {
       isSelectNode: state=>state.isSelectNode,
       selectedViewType: state => state.selectedViewType,
       isSelectedViewType: state => state.isSelectedViewType,
-      dateRange: state => state.dateRange
+      dateRange: state => state.dateRange,
+      curColorMap: state => state.curColorMap
     }),
     filteredHistory() {
       if (!this.searchText) {
@@ -147,11 +145,55 @@ export default {
         store.dispatch('saveSelectBox',matchingKeys);
       } else {
         // 没有找到匹配的键
-        this.executeCode()
+        const regex = /\.(\w+)\(/g; // 正则表达式，寻找所有的操作
+        const matches = this.codeInput.match(regex);
+
+        let lastOperation = null;
+        if (matches !== null && matches.length > 0) {
+          // 获取最后一个匹配项，并从匹配结果中提取操作名
+          const lastMatch = matches[matches.length - 1];
+          lastOperation = lastMatch.slice(1, lastMatch.indexOf('('));
+
+          if(lastOperation!=="filter" && lastOperation!=="unique_attr" ){
+            if (this.codeInput.includes("view_type")) {
+              this.executeCode()
+            }
+          }
+          else{
+            this.executeCode()
+          }
+        }
+        else{
+          this.executeCode()
+        }
       }
     },
+
+    curColorMap(newValue){
+      this.selected = newValue
+      let uniqueValues = new Set(this.colormapData[newValue]);
+      // 如果需要转换回数组形式
+      uniqueValues = [...uniqueValues];
+      store.dispatch('saveGlobalColorMap',uniqueValues);
+    }
   },
   methods: {
+    clickSupport(){
+      if(this.inputSupport!==""){
+        store.dispatch('saveCurMinSupport',this.inputSupport +"%")
+        store.dispatch('saveIsClickSupport')
+      }
+    },
+    convertToDropdownFormat(items) {
+      return items.map(item => ({ value: item, label: item }));
+    },
+    handleSelectChange(newValue) {
+      store.dispatch('saveCurColorMap',newValue)
+      let uniqueValues = new Set(this.colormapData[newValue]);
+      // 如果需要转换回数组形式
+      uniqueValues = [...uniqueValues];
+      store.dispatch('saveGlobalColorMap',this.colormapData[this.selected])
+    },
     brush() {
       store.dispatch('saveIsClickBrush');
     },
@@ -184,22 +226,6 @@ export default {
       }
       return allChildDivs
     },
-    removeSequence(index) {
-      this.$confirm('确定要删除这个序列吗?', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        this.unusualSequences.splice(index, 1);
-      }).catch(() => {
-        // 可以处理取消删除的情况
-      });
-    },
-
-    selectSequence(item){
-      this.$store.dispatch('saveSelectedSeq', Object.values(item));
-    },
-
     // 上传之前判断文件格式
     beforeUpload(file){
       if (file.type != null){
@@ -246,7 +272,7 @@ export default {
       }
 
       // 前端可以直接把最后的操作传给后端 后面再改
-      axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput })
+      axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput, support: "50%" })
           .then(response => {
             // 使用 Vuex action 更新 responseData
             this.$store.dispatch('saveResponseData', response.data);
@@ -263,15 +289,8 @@ export default {
 
             if (this.operation === "original") {
               this.$store.dispatch('saveOriginalTableData', { key: this.codeInput, value: this.responseData['result'] });
-            }
-            else{
-              axios.post('http://127.0.0.1:5000/executeCode', { code: this.codeInput.split(".")[0] })
-                  .then(response => {
-                    const responseData = response.data;
-                    this.$store.dispatch('saveOriginalTableData', { key: this.codeInput.split(".")[0], value: responseData['result'] });
-                  })
-                  .catch(error => {
-                  });
+              this.colormapData = this.responseData['result']
+              this.colorOptions = this.convertToDropdownFormat(Object.keys(this.responseData['result']))
             }
           })
           .catch(error => {
@@ -351,4 +370,54 @@ export default {
   background: #f1f9ff;
 }
 
+.support-container {
+  position: relative;
+  display: inline-block;
+  width: 88% !important;
+  margin-left: 6%;
+  top: 26%;
+  border: 1.3px solid #dddfe5;
+  border-radius: 3px;
+}
+
+.percent-label {
+  position: absolute;
+  right: 5px; /* Adjust based on padding and aesthetics */
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center; /* Center vertically */
+  pointer-events: none; /* Allows click to pass through to the input */
+  color: #A9A9A9;
+  font-size: 2%;
+}
+
+#submit-button {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center; /* Center vertically */
+  font-size: 2%;
+  width: 60%;
+  margin-left: 0;
+  color: #A9A9A9;
+}
+
+/* 输入框样式 */
+#support-input {
+  border: none;
+  border-radius: 4px;
+  height: 2.5vh;
+  margin-left: 1px;
+  box-sizing: border-box;
+  transition: border-color .2s;
+  font-size: 70% !important;
+  color: #A9A9A9;
+  width: 28%; /* Fill the container */
+  left:68%;
+  padding-right: 20px; /* Space for percent symbol */
+}
 </style>

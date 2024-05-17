@@ -97,7 +97,7 @@
 .newPopup{
 	position: absolute;
 	width:25%;
-	height: 65%;
+	height: 68%;
 	background-color: #f9f9f9;
 	border: 2px solid #E9E9E9;
 	border-radius: 5px;
@@ -110,7 +110,7 @@
 .eventPopup{
 	position: absolute;
 	width: 20%;
-	height: 30%;
+	height: 35%;
 	background-color: #f9f9f9;
 	border: 2px solid #E9E9E9;
 	border-radius: 5px;

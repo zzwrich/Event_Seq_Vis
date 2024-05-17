@@ -9,28 +9,33 @@
     <div style="height: 100%;">
       <div class="content-block" style="margin-top: -30px">
         <h5>Time Range</h5>
+
         <div style="margin-top: -20px">
           <div class="range-selector">
             <!-- 最小值输入 -->
-            <el-input-number
-                v-model="startNum"
+            <el-input
+                v-model.number="startNum"
+                type="number"
                 :min="min"
                 :max="max"
-                @change="handleStartTimeChange"
                 size="small"
-            ></el-input-number>
-            <div style="color: grey">-</div>
+                @input="handleStartTimeChange"
+                style="width: 90px"
+            ></el-input>
+            <div style="color: grey;margin-left: -18px">-</div>
             <!-- 最大值输入 -->
-            <el-input-number
-                v-model="endNum"
+            <el-input
+                v-model.number="endNum"
+                type="number"
                 :min="min"
                 :max="max"
                 size="small"
-            ></el-input-number>
+                style="width: 90px"
+            ></el-input>
             <el-select
                 v-model="selectedUnit"
                 placeholder="unit"
-                style="width: 40%; border: none;background: none;margin-left: -2px"
+                style="width: 100px; border: none;background: none;margin-left: -2px"
                 size="small">
               <el-option
                   v-for="item in units"
@@ -101,7 +106,7 @@ export default {
         { value: 'sec', label: 'sec' }
       ],
       selectedUnit: null, // 选中的单位
-      selectedEventAnalyse: null, // 选中的单位
+      selectedEventAnalyse: null,
     };
   },
   watch: {
@@ -135,17 +140,20 @@ export default {
       this.$emit('close');
     },
     handleStartTimeChange(value) {
-      if (isNaN(value)) {
-        // 如果输入非数字，清空结束时间输入框
+      const numValue = Number(value);
+      if (isNaN(numValue)) {
+        // 如果输入非数字，清空起始时间输入框
+        this.startNum = '';
         this.endNum = '';
       } else {
-        if (value > 0) {
+        if (numValue > 0) {
           // 如果输入的是正数，转换为负数
-          value = -value;
-          this.startNum = value;
+          this.startNum = -numValue;
+          this.endNum = numValue;
+        } else {
+          this.startNum = 0;
+          this.endNum = numValue;
         }
-        // 设置结束时间为起始时间的相反数
-        this.endNum = -value;
       }
     },
     closePopup() {
@@ -162,12 +170,7 @@ export default {
 .range-selector {
   display: flex; /* 启用Flexbox */
   align-items: center; /* 垂直居中 */
-  justify-content: space-between; /* 元素之间平均分配空间 */
-  gap: 10px; /* 元素之间的间隔 */
+  //justify-content: space-between; /* 元素之间平均分配空间 */
+  gap: 5px; /* 元素之间的间隔 */
 }
-.range-selector > div {
-  display: flex; /* 使"-""符号的div也支持flex布局 */
-  align-items: center; /* 垂直居中 */
-}
-
 </style>

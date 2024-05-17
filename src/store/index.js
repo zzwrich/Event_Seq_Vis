@@ -1,4 +1,38 @@
 import { createStore } from 'vuex';
+import * as d3 from "d3";
+function generateGrayscaleColors(count) {
+    let grayscales = [];
+    for (let i = 0; i < count; i++) {
+        // 生成介于50~200之间的灰度值，避免过于接近黑色或白色
+        let grayValue = Math.round(50 + (150 * i / (count - 1)));
+        grayscales.push(`rgb(${grayValue}, ${grayValue}, ${grayValue})`);
+    }
+    return grayscales;
+}
+
+const combinedColors = [...d3.schemeTableau10,...d3.schemePastel1, ...d3.schemePastel2, ...d3.schemeSet3, ...d3.schemeAccent, ...d3.schemeCategory10];
+// const combinedColors = [
+//     "rgb(67, 121, 131)",
+//     "rgb(71, 141, 118)",
+//     "rgb(82, 165, 92)",
+//     "rgb(212, 185, 106)",
+//     "rgb(212, 171, 106)",
+//     "rgb(138, 189, 95)",
+//     "rgb(212, 155, 106)",
+//     "rgb(171, 200, 100)",
+//     "rgb(212, 126, 106)",
+//     "rgb(184, 92, 128)",
+//     "rgb(204, 210, 105)",
+//     "rgb(212, 205, 106)",
+//     "rgb(212, 195, 106)",
+//     "rgb(116, 75, 142)",
+//     "rgb(101, 80, 145)",
+//     "rgb(84, 89, 148)",
+//     "rgb(73, 108, 137)",
+//     "rgb(71, 113, 135)",
+//     "rgb(135, 70, 139)",
+//     "rgb(212, 114, 106)",
+// ];
 
 const store = createStore({
     state() {
@@ -51,7 +85,21 @@ const store = createStore({
             isClickCancelFilter: false,
             isClickCancelBrush: false,
             // 存放所有时间轴视图的id对应的数据
-            timeLineData: {}
+            timeLineData: {},
+            // 全局的colorMap
+            globalColorMap: {},
+            // 当前的colorMap选项
+            curColorMap: "",
+            // 由brush导致的筛选
+            brushedEvent: [],
+            // 由brush导致的过滤条件
+            brushedRules:{},
+            // 由brush导致的模式筛选
+            brushedPattern: [],
+            //是否修改了min support
+            isClickSupport: false,
+            // 当前的min support
+            curMinSupport: ""
         };
     },
     mutations: {
@@ -213,6 +261,49 @@ const store = createStore({
         setTimeLineData(state, { key, value }) {
             state.timeLineData[key] = value;
         },
+        setGlobalColorMap(state, option){
+            const grayscaleColors = generateGrayscaleColors(20);
+            state.globalColorMap = {}
+            if(typeof option[0] === 'number'){
+                const minValue = Math.min(...option);
+                const maxValue = Math.max(...option);
+                const colorScale = d3.scaleSequential(d3.interpolateYlGnBu)
+                    .domain([minValue, maxValue]); // 定义域：最小值到最大值
+
+                option.forEach((event) => {
+                    state.globalColorMap[event] = colorScale(event);
+                });
+            }
+            else{
+                option.forEach((event, index) => {
+                    if (index < combinedColors.length) {
+                        // 如果索引在颜色列表长度之内，就使用莫兰迪颜色
+                        state.globalColorMap[event] = combinedColors[index];
+                    } else {
+                        // 如果索引超出莫兰迪颜色列表长度，就使用灰色
+                        state.globalColorMap[event] = grayscaleColors[(index - combinedColors.length) % grayscaleColors.length];
+                    }
+                });
+            }
+        },
+        setCurColorMap(state, option) {
+            state.curColorMap = option;
+        },
+        setBrushedEvent(state, option) {
+            state.brushedEvent = option;
+        },
+        setBrushedRules(state, option) {
+            state.brushedRules = option;
+        },
+        setBrushedPattern(state, option) {
+            state.brushedPattern = option;
+        },
+        setIsClickSupport(state) {
+            state.isClickSupport = !state.isClickSupport;
+        },
+        setCurMinSupport(state, option) {
+            state.curMinSupport = option;
+        },
     },
     actions: {
         saveResponseData({ commit }, data) {
@@ -349,6 +440,27 @@ const store = createStore({
         },
         saveTimeLineData({ commit }, {key, value}) {
             commit('setTimeLineData', {key, value});
+        },
+        saveGlobalColorMap({ commit }, option) {
+            commit('setGlobalColorMap',option);
+        },
+        saveCurColorMap({ commit }, option) {
+            commit('setCurColorMap',option);
+        },
+        saveBrushedEvent({ commit }, option) {
+            commit('setBrushedEvent',option);
+        },
+        saveBrushedRules({ commit }, option) {
+            commit('setBrushedRules',option);
+        },
+        saveBrushedPattern({ commit }, option) {
+            commit('setBrushedPattern',option);
+        },
+        saveIsClickSupport({ commit }) {
+            commit('setIsClickSupport');
+        },
+        saveCurMinSupport({ commit }, option) {
+            commit('setCurMinSupport',option);
         },
     }
 });

@@ -2,6 +2,7 @@ import {max, min, sum} from "d3-array";
 import {justify} from "./align.js";
 import constant from "./constant.js";
 import {sankeyRight} from "d3-sankey";
+import * as d3 from 'd3';
 
 function ascendingSourceBreadth(a, b) {
   return ascendingBreadth(a.source, b.source) || a.index - b.index;
@@ -221,16 +222,54 @@ export default function Sankey() {
   }
 
   // 计算节点的垂直位置以及链接宽度
+  // function initializeNodeBreadths(columns) {
+  //   const ky = min(columns, c => (y1 - y0 - (c.length - 1) * py) / sum(c, value));
+  //   for (const nodes of columns) {
+  //     let y = y0;
+  //     for (const node of nodes) {
+  //       node.y0 = y;
+  //       node.y1 = y + node.value * ky;
+  //       y = node.y1 + py;
+  //       for (const link of node.sourceLinks) {
+  //         link.width = link.value * ky;
+  //       }
+  //     }
+  //     y = (y1 - y + py) / (nodes.length + 1);
+  //     for (let i = 0; i < nodes.length; ++i) {
+  //       const node = nodes[i];
+  //       node.y0 += y * (i + 1);
+  //       node.y1 += y * (i + 1);
+  //     }
+  //     reorderLinks(nodes);
+  //   }
+  // }
+
   function initializeNodeBreadths(columns) {
-    const ky = min(columns, c => (y1 - y0 - (c.length - 1) * py) / sum(c, value));
+    const allValues = columns.flatMap(c => c.map(d => d.value)); // 获取所有节点的值
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+
+    let scale;
+    if (maxValue > 10 * minValue) {
+      // 如果最大值超过最小值的10倍，使用比例尺
+      scale = d3.scaleLinear()
+          .domain([minValue, maxValue])
+          .range([1, 5]); // 节点的最小宽度和最大宽度
+    } else {
+      // 否则，使用恒定值以避免缩放
+      scale = d => d;
+    }
+
+    const ky = min(columns, c => (y1 - y0 - (c.length - 1) * py) / sum(c, d => d.value));
     for (const nodes of columns) {
       let y = y0;
       for (const node of nodes) {
+        let nodeWidth = scale(node.value * ky); // 使用比例尺调整宽度
         node.y0 = y;
-        node.y1 = y + node.value * ky;
+        node.y1 = y + nodeWidth;
         y = node.y1 + py;
         for (const link of node.sourceLinks) {
-          link.width = link.value * ky;
+          link.width = scale(link.value * ky); // 使用比例尺调整链接宽度
         }
       }
       y = (y1 - y + py) / (nodes.length + 1);
@@ -242,6 +281,7 @@ export default function Sankey() {
       reorderLinks(nodes);
     }
   }
+
 
   function computeNodeBreadths(graph) {
     const columns = computeNodeLayers(graph);

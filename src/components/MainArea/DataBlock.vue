@@ -94,7 +94,7 @@ export default {
 
 <style>
 .data-table-container {
-  height: 33%;
+  height: 28%;
   position: absolute;
   top: 8%; /* 底部与父容器底部对齐 */
   max-height: 100%;

@@ -33,7 +33,7 @@
 }
 .tool {
 	position: absolute;
-	top: 44%;
+	top: 39%;
 	height: 5%;
 	border-radius: 5px;
 	background: white;
@@ -49,7 +49,6 @@
 	margin-top: 15px;
 	cursor: pointer;
 }
-
 .module-title {
 	position: absolute;
 	top: -8px;
@@ -60,26 +59,31 @@
 	font-size: 2%;
 	font-weight: bold;
 }
-
-.codeExecutionArea{
+.colormap {
 	position: absolute;
-	top: 75%;
-	width: 94%;
-	left: 2%;
-	height: 23%;
-	/*border: 2px solid #D3D3D3;*/
+	top: 47%;
+	height: 5%;
 	border-radius: 5px;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	padding: 1%;
-	margin-bottom: 20px;
 	background: white;
+	margin-bottom: 30px;
+	border: 2px solid #D3D3D3;
+	font-weight: bold;
 }
-
+.module-color {
+	position: absolute;
+	top: -9px;
+	left: 10px;
+	background: white;
+	padding: 0 5px;
+	color: #666666;
+	font-size: 2%;
+	font-weight: bold;
+}
  /*历史记录面板样式 */
 .history{
 	position: absolute;
-	top: 52%;
-	height: 47%;
+	top: 55%;
+	height: 44%;
 	width: 96%;
 }
 .historyPanel {
@@ -98,7 +102,8 @@
 
 .historyItem {
 	padding: 5px 15px 5px 10px;
-	width: 78%;
+	width: 75%;
+	word-break:break-all;
 	border-bottom: 1px solid #ddd;
 	cursor: pointer;
 	transition: background-color 0.3s;

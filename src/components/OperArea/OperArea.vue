@@ -2,7 +2,7 @@
   <div class="container">
     <div class="data" id="word">Data:</div>
     <div class="myLine"></div>
-    <div class="view" id="word">View:</div>
+    <div class="view" id="word">Vis:</div>
     <div class="myLine2"></div>
     <div class="intermedia" id="word">Intermedia:</div>
     <div style="position: absolute;right: 0">
@@ -98,7 +98,7 @@ export default {
         { url: '../../../static/sunBurst.png', vis: "sunBurst", style:"width: 30px; height: 30px;margin: 0 5px;" },
         { url: '../../../static/timeLine.png', vis: "timeLine", style:"width: 30px; height: 30px;margin: 0 5px;" },
         { url: '../../../static/Sankey.png', vis: "Sankey", style:"width: 35px; height: 35px;margin: 0 5px;" },
-        { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 35px; height: 35px;margin: 0 5px;" }
+        // { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 35px; height: 35px;margin: 0 5px;" }
       ],
       checkboxOptions:{},
       filterExpression: {},
@@ -139,7 +139,9 @@ export default {
       if (newVal !== oldVal) {
         this.maxText = ""
       }
-      this.handleNodeClick(newVal);
+      if(newVal!=="node0"){
+        this.handleNodeClick(newVal);
+      }
     },
     // 监听数据的选择
     isSelectedData() {
@@ -167,7 +169,7 @@ export default {
     // 监听可视化构型的选择
     isSelectVisualType() {
       if (this.currentNode) {
-        if(((this.selectedOperator==="group_by")||(this.selectedOperator==="flatten"))
+        if(((this.selectedOperator==="group_by")||(this.selectedOperator==="flatten")||(this.selectedOperator==="pattern"))
             &&(["barChart", "pieChart", "sunBurst"].includes(store.state.visualType))){
           this.showOperator(this.currentNode,"count");
         }
@@ -177,7 +179,6 @@ export default {
           this.AddViewType(this.currentNode, store.state.visualType);
         }
       }
-      this.handleNodeClick(this.currentNode)
     },
     // 监听代码的变化
     isSelectHistory() {
@@ -256,7 +257,8 @@ export default {
             const expression = value["expression"][length-1]
             const eventData = value["data"][length-1]
             const curNode = this.graph.node(nodeId);
-            let text = curNode.label
+            // let text = curNode.label
+            let text = "eventSet"
             const positionX=curNode.x;
             let positionY
             let outerRect
@@ -271,14 +273,14 @@ export default {
             const outerX =positionX - width / 2 - padding;
 
             if (element1.empty()) {
-              positionY = curNode.y + curNode.height +25;
+              positionY = curNode.y + curNode.height +22;
               textId=text+"1"
               if(!element2.empty()){
                 outerY = element2.attr("y") - padding/2- curNode.height-5
                 createOuterRect.call(this, outerX, outerY);
               }
             } else {
-              positionY = curNode.y + curNode.height*2 +30;
+              positionY = curNode.y + curNode.height*2 +27;
               textId = text+"2"
               if(!element1.empty()){
                 outerY = positionY - padding/2- curNode.height-5
@@ -305,8 +307,8 @@ export default {
                   .style("stroke-dasharray", ("3, 3"))
                   .style("cursor","pointer")
                   .on("click", function() {
-                    self.eventPopupLeft = outerX + outerWidth +80;
-                    self.eventPopupTop = outerY +10;
+                    self.eventPopupLeft = outerX + outerWidth +70;
+                    self.eventPopupTop = outerY-10;
                     self.eventPopupVisible = true
                     self.eventDataList= eventData
                   });
@@ -695,7 +697,7 @@ export default {
               this.popupOperation=operationList
               this.popupVisualization=visualizationList
               this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
-              if(lastOperation==="group_by"||lastOperation==="flatten"){
+              if(lastOperation==="group_by"||lastOperation==="flatten"||lastOperation==="pattern"){
                 const groupNum = operationsArray.filter(item => item === "group_by").length;
                 const flattenNum = operationsArray.filter(item => item === "flatten").length;
                 // 计算group_by和flatten的数量差
@@ -726,14 +728,12 @@ export default {
     handleNodeClick(nodeId) {
       // 获取点击节点
       const clickNode = this.graph.node(nodeId);
-      const className = clickNode.class;
       // 为当前节点设置高亮效果
       this.highlightNode(clickNode)
 
       const container = document.getElementsByClassName('grid-item block3')[0]
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
-      const containerHeight = containerRect.height;
       const offsetX = 0.05*containerWidth; // 水平偏移量
 
       this.popupLeft = clickNode.x + offsetX+50;
@@ -839,71 +839,93 @@ export default {
           this.createPopUp(completePath)
         }
       }
-      // else{
-      //   if(className!==clickNode.id){
-      //     this.interactiveNodeId = clickNode.id
-      //     this.$store.dispatch('saveCurExpression',className);
-      //     this.popupParam = []
-      //     // 获取下一步可能的操作和可视化构型
-      //     axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
-      //         .then(response => {
-      //           const operationList = response.data["operationList"]
-      //           const visualizationList = response.data["visualizationList"]
-      //           this.popupOperation=operationList
-      //           this.popupVisualization=visualizationList
-      //           // 使用数组过滤方法来筛选保留符合条件的图片
-      //           this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
-      //           this.popupVisible = true;
-      //         })
-      //         .catch(error => {
-      //           console.error(error);
-      //         });
-      //   }
-      //   else{
-      //     let pathToNode = this.findPath(this.interactiveNodeId, nodeId);
-      //     const curInteractiveNode = this.graph.node(this.interactiveNodeId);
-      //     const originalExpression = curInteractiveNode.class
-      //     const nodes = pathToNode.nodes
-      //     const edges = pathToNode.edges
-      //     const completePath = this.createCompletePaths(nodes, edges)
-      //     completePath.forEach((item,index) => {
-      //       // 获取对象的键和值
-      //       let key = Object.keys(item)[0];
-      //       let value = item[key];
-      //       if(key === "node"){
-      //         this.$store.dispatch('saveCurExpression',originalExpression);
-      //       }
-      //       else if(key === "operator"){
-      //         this.$store.dispatch('saveCurExpression',this.$store.state.curExpression + '.' + value + "()");
-      //       }
-      //       else if(key === "parameter"){
-      //         const lastIndex = index-1
-      //         const lastKey = Object.keys(completePath[lastIndex])[0];
-      //         const lastValue = completePath[index-1][lastKey];
-      //         //更新表达式
-      //         const curExpression = this.$store.state.curExpression
-      //         let newExpression = addParameter(curExpression, value)
-      //         if(lastValue==="filter"){
-      //           if(value!=="time"){
-      //             if(this.filterExpression.hasOwnProperty(lastIndex.toString())){
-      //               newExpression = this.filterExpression[lastIndex];
-      //             }
-      //             else{
-      //               newExpression = enhanceFilterExpression(newExpression, this.filterParam);
-      //               this.filterExpression[lastIndex.toString()] = newExpression
-      //             }
-      //           }
-      //         }
-      //         this.$store.dispatch('saveCurExpression',newExpression);
-      //         if(lastValue==="view_type"){
-      //           this.$store.dispatch('saveVisualType', value);
-      //           this.$store.dispatch('saveNodeId', nodeId);
-      //         }
-      //       }
-      //     });
-      //     this.createPopUp(completePath)
-      //   }
-      // }
+      else{
+        const className = clickNode.class
+        if(className!==clickNode.id){
+          this.interactiveNodeId = clickNode.id
+          this.$store.dispatch('saveCurExpression',className);
+          this.popupParam = []
+          // 获取下一步可能的操作和可视化构型
+          axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
+              .then(response => {
+                const operationList = response.data["operationList"]
+                const visualizationList = response.data["visualizationList"]
+                this.popupOperation=operationList
+                this.popupVisualization=visualizationList
+                // 使用数组过滤方法来筛选保留符合条件的图片
+                this.popupVisImg = this.images.filter(img => visualizationList.includes(img.vis));
+                this.popupVisible = true;
+              })
+              .catch(error => {
+                console.error(error);
+              });
+        }
+        else{
+          let filterCount = 0;
+          let pathToNode = this.findPath(this.interactiveNodeId, nodeId);
+          const curInteractiveNode = this.graph.node(this.interactiveNodeId);
+          const originalExpression = curInteractiveNode.class
+          const nodes = pathToNode.nodes
+          const edges = pathToNode.edges
+          let completePath = this.createCompletePaths(nodes, edges)
+          // 遍历数据，记录每个operator为filter的数据项是第几次出现
+          completePath = completePath.map((item, index) => {
+            if (item.operator === 'filter') {
+              filterCount += 1; // 增加计数
+              return { ...item, occurrence: filterCount }; // 返回当前项并附加出现次数
+            }
+            return item;
+          });
+          completePath.forEach((item,index) => {
+            // 获取对象的键和值
+            let key = Object.keys(item)[0];
+            let value = item[key];
+            if(key === "node"){
+              this.$store.dispatch('saveCurExpression',originalExpression);
+            }
+            else if(key === "operator"){
+              this.$store.dispatch('saveCurExpression',this.$store.state.curExpression + '.' + value + "()");
+            }
+            else if(key === "parameter"){
+              const lastIndex = index-1
+              const lastKey = Object.keys(completePath[lastIndex])[0];
+              const lastValue = completePath[index-1][lastKey];
+              //更新表达式
+              const curExpression = this.$store.state.curExpression
+              let newExpression = addParameter(curExpression, value)
+              if(lastValue==="filter"){
+                if(value!=="time"){
+                  const filterNodeId = filterTargets[completePath[lastIndex]["occurrence"]-1]
+                  if(this.filterExpression.hasOwnProperty(filterNodeId)){
+                    newExpression = this.filterExpression[filterNodeId];
+                  }
+                  else{
+                    newExpression = enhanceFilterExpression(newExpression, this.filterParam);
+                    this.filterExpression[filterNodeId] = newExpression
+                  }
+                }
+                else{
+                  const filterNodeId = filterTargets[completePath[lastIndex]["occurrence"]-1]
+                  if(this.filterExpression.hasOwnProperty(filterNodeId)){
+                    newExpression = this.filterExpression[filterNodeId];
+                  }
+                  else{
+                    const insert_template = "filterTimeRange('{startTime}','{endTime}')"
+                    newExpression = enhanceFilterTimeExpression(newExpression, insert_template, this.filterParam[0], this.filterParam[1]).replace('.filter("time")', '');
+                    this.filterExpression[filterNodeId] = newExpression
+                  }
+                }
+              }
+              this.$store.dispatch('saveCurExpression',newExpression);
+              if(lastValue==="view_type"){
+                this.$store.dispatch('saveVisualType', value);
+                this.$store.dispatch('saveNodeId', nodeId);
+              }
+            }
+          });
+          this.createPopUp(completePath)
+        }
+      }
 
       this.$store.dispatch('saveIsSelectNode');
       if (!this.pathData[store.state.curExpression]){
@@ -1035,7 +1057,7 @@ export default {
             .attr('height', rectHeight)
             .style('fill', 'transparent');
         // 添加有限长度的文字
-        const maxTextLength = 2; // 最大文本长度
+        const maxTextLength = 8; // 最大文本长度
         let displayText = text.length > maxTextLength ? text.substring(0, maxTextLength) + '...' : text;
         let CircleText = text.length > 1 ? text.substring(0, maxTextLength) : text;
         // 添加文字

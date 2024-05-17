@@ -53,19 +53,28 @@
              @click="checkFilterAttr" class="myIcon"></check>
       <!-- 根据所选标签显示的选项列表 -->
       <h5 style="margin-top: 10px;margin-bottom: 5px">Values</h5>
-      <el-input v-model="searchText" placeholder="Search" prefix-icon="Search" class="searchBox"></el-input>
-      <div style="border: 2px solid #E9E9E9;border-radius: 5px;margin-top: 5px;width: 98%;margin-left: 3px">
-        <ul class="popupList attrList" style="z-index: 9999;margin-top: 0">
-          <li
-              v-for="(option, index) in filteredAttributeList"
-              :key="index"
-              style="padding: 5px 5px 0 5px;transition: background-color 0.3s;color: #808080;font-size: 2%;
+      <div  v-if="typeof dataOfAttr === 'string'">
+        <el-input v-model="searchText" placeholder="Search" prefix-icon="Search" class="searchBox"></el-input>
+        <div style="border: 2px solid #E9E9E9;border-radius: 5px;margin-top: 5px;width: 98%;margin-left: 3px">
+          <ul class="popupList attrList" style="z-index: 9999;margin-top: 0">
+            <li
+                v-for="(option, index) in filteredAttributeList"
+                :key="index"
+                style="padding: 5px 5px 0 5px;transition: background-color 0.3s;color: #808080;font-size: 2%;
                       display: flex;align-items: center;border: none;"
-              :class="{ 'is-selected': selectedCheckboxes.includes(option) }"
-              @click="chooseAttr(option)">
-            {{ option }}
-          </li>
-        </ul>
+                :class="{ 'is-selected': selectedCheckboxes.includes(option) }"
+                @click="chooseAttr(option)">
+              {{ option }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div v-else-if="typeof dataOfAttr === 'number'">
+        <div style="margin-top: 5px;width: 98%;margin-left: 3px">
+          <el-input type="number" v-model="minValue" placeholder="min" size="small" style="width: 40%;"></el-input>
+          <span style="color: grey;margin-right: 15px">-</span>
+          <el-input type="number" v-model="maxValue" placeholder="max" size="small" style="width: 40%"></el-input>
+        </div>
       </div>
     </div>
     <div v-else-if="displayMode === 'unique_count'"
@@ -131,6 +140,10 @@ export default {
       selectedCountboxes: [], // 存储被选中的选项
       newPopupVisible: false,
       searchText: '',
+      //选中的属性可能是字符型也可能是数字型
+      dataOfAttr: '',
+      minValue: null,
+      maxValue: null
     };
   },
   watch: {
@@ -183,12 +196,20 @@ export default {
     handleLabelChange(value) {
       if (this.checkboxOptions[value]) {
         this.attributeList = this.checkboxOptions[value];
+        if(value.toLowerCase().includes("id")){
+          this.dataOfAttr = "string"
+        }
+        else{
+          this.dataOfAttr = this.checkboxOptions[value][0]
+        }
       } else {
         this.attributeList = [];
       }
       this.$store.dispatch('saveSelectedParameter',value);
       // 当标签更换时清空已选中的选项
       this.selectedCheckboxes = [];
+      this.minValue = null
+      this.maxValue = null
     },
     chooseAttr(option){
       const index = this.selectedCheckboxes.indexOf(option);
@@ -212,6 +233,15 @@ export default {
       this.newPopupVisible = false
     },
     checkFilterAttr(){
+      if(typeof this.dataOfAttr === 'number'){
+        if (this.minValue !== null && this.maxValue !== null && !isNaN(this.minValue) && !isNaN(this.maxValue)) {
+          if (this.minValue <= this.maxValue) {
+            this.selectedCheckboxes = [this.minValue, this.maxValue];
+          } else {
+            this.selectedCheckboxes = [this.maxValue, this.minValue];
+          }
+        }
+      }
       this.$store.dispatch('saveIsSelectParameter');
       this.$store.dispatch('saveFilterParam',this.selectedCheckboxes)
       this.newPopupVisible = false

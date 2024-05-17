@@ -61,7 +61,7 @@
 }
 
 /*下拉框样式*/
-.el-select {
+.my-select {
 	margin-left: 1%;
 	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	line-height: 1.5;
@@ -77,9 +77,9 @@
 	height: 3vh;
 }
 
-#agg-selection{
-	 width: 5.2vw !important;
- }
+/*#agg-selection{*/
+/*	 width: 7.2vw !important;*/
+/* }*/
 
 .el-select:focus {
 	border-color: #409eff;
@@ -106,7 +106,6 @@
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	-ms-user-select: none;
-	padding: 12px 20px;
 	border-radius: 4px;
 }
 
@@ -164,10 +163,29 @@
 	font-size: 70%;
 	height: 3vh;
 }
+.unpaired-event{
+	fill: #eeeeee !important;
+}
+
+.event-in-path{
+	fill: #eeeeee !important;
+}
+
+.unhighlighted-text{
+	fill: #C0C0C0 !important;
+}
 
 .event-selected {
 	stroke: #ff0; /* 外边框颜色，可以根据需要调整 */
 	stroke-width: 2px; /* 外边框宽度 */
+	fill-opacity: 0.8; /* 填充透明度 */
+	stroke-opacity: 0.9; /* 外边框透明度 */
+	filter: url(#glow); /* 应用发光滤镜 */
+}
+
+.text-selected {
+	stroke: #ff0; /* 外边框颜色，可以根据需要调整 */
+	stroke-width: 1px; /* 外边框宽度 */
 	fill-opacity: 0.8; /* 填充透明度 */
 	stroke-opacity: 0.9; /* 外边框透明度 */
 	filter: url(#glow); /* 应用发光滤镜 */
@@ -184,7 +202,7 @@
 }
 
 .mouseover-username {
-	text-shadow: 0 0 5px white; /* 设置光圈效果 */
+	text-shadow: 0 0 4px grey;
 }
 
 .mouseover-legend {
@@ -197,6 +215,10 @@
 
 .mouseover-path {
 	filter: drop-shadow(0 0 4px #F56C6C);
+}
+
+.highlight-path {
+	stroke: #DCDCDC;
 }
 
 /* 勾选框样式 */
@@ -260,27 +282,6 @@
 	transform: rotate(45deg);
 }
 
-/* 输入框样式 */
-.my-input {
-	border: 1px solid #eeeeee;
-	border-radius: 4px;
-	width: 4vw !important;
-	height: 3vh;
-	margin-left: 1%;
-	box-sizing: border-box;
-	transition: border-color .2s;
-	font-size: 70% !important;
-}
-
-.my-input:hover {
-	border-color: #c0c4cc;
-}
-
-.my-input:focus {
-	outline: none;
-	border-color: #409eff;
-}
-
 /* 标签样式 */
 .time-input-label {
 	color: #606266;
@@ -305,11 +306,76 @@
 	gap: 1%;             /* 子元素之间的间距 */
 }
 
+.el-input {
+	width: 100%; /* Fill the container */
+	box-sizing: border-box; /* Include padding and border in the width */
+	padding-right: 20px; /* Space for percent symbol */
+}
+
 .controls-container {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 }
+
+/*模式视图样式*/
+.support-container {
+	position: relative;
+	display: inline-block;
+	width: 11vw !important;
+	margin-left:10px;
+	border: 1px solid #eeeeee;
+}
+
+.percent-label {
+	position: absolute;
+	right: 5px; /* Adjust based on padding and aesthetics */
+	top: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center; /* Center vertically */
+	pointer-events: none; /* Allows click to pass through to the input */
+	color: grey;
+	font-size: 2%;
+}
+
+#submit-button {
+	border: none; /* Optional: remove border */
+	position: absolute;
+	left: 0;
+	height: 100%;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center; /* Center vertically */
+	font-size: 2%;
+}
+
+/* 输入框样式 */
+#support-input {
+	/*border: 1px solid #eeeeee;*/
+	border: none;
+	border-radius: 4px;
+	height: 3vh;
+	margin-left: 1%;
+	box-sizing: border-box;
+	transition: border-color .2s;
+	font-size: 70% !important;
+	color: grey;
+	width: 30%; /* Fill the container */
+	left:70%;
+	padding-right: 20px; /* Space for percent symbol */
+}
+
+#support-input:hover {
+	border-color: #c0c4cc;
+}
+
+#support-input:focus {
+	outline: none;
+	border-color: #409eff;
+}
+
 /*悬浮框样式*/
 .tooltip {
 	position: absolute;
