@@ -82,29 +82,29 @@ def generate_dict(n, string):
 def process_sankey_data(data, seq_view):
     nodes = []
     links = []
-    # 遍历原始数据
+    # 遍历原始数据e
     for username, user_data in data.items():
         events = user_data[seq_view]
         timeKey = find_time_key(user_data)
         # 如果事件只有一个元素，直接添加节点
         if len(events) == 1:
             data_by_key = {}
-            # 遍历所有的键
-            for key in user_data.keys():
-                # 将每个键对应的值存储在字典中
-                if key == seq_view:
-                    data_by_key[key] = user_data[key][0]
-                if key == timeKey:
-                    timeValue = user_data[key][0]
-            # 查找或添加节点
-            source_node = next((node for node in nodes if node['name'] == events[0]),
-                               {'name': events[0], 'data': data_by_key, 'time': timeValue})
-            target_node = next((node for node in nodes if node['name'] == 'unknown'),
-                               {'name': 'unknown', "data": {}, 'time': ""})
-            nodes.append(source_node)
-            nodes.append(target_node)
-            links.append(
-                {'head': {'name': ''}, 'tail': {'name': ''}, 'source': source_node, 'target': target_node, 'value': 1})
+            # # 遍历所有的键
+            # for key in user_data.keys():
+            #     # 将每个键对应的值存储在字典中
+            #     if key == seq_view:
+            #         data_by_key[key] = user_data[key][0]
+            #     if key == timeKey:
+            #         timeValue = user_data[key][0]
+            # # 查找或添加节点
+            # source_node = next((node for node in nodes if node['name'] == events[0]),
+            #                    {'name': events[0], 'data': data_by_key, 'time': timeValue})
+            # target_node = next((node for node in nodes if node['name'] == 'unknown'),
+            #                    {'name': 'unknown', "data": {}, 'time': ""})
+            # nodes.append(source_node)
+            # nodes.append(target_node)
+            # links.append(
+            #     {'head': {'name': ''}, 'tail': {'name': ''}, 'source': source_node, 'target': target_node, 'value': 1})
 
         else:
             # 遍历事件，构建节点和链接
@@ -192,6 +192,7 @@ def process_data(data):
 
 
 def process_agg_sankey_data(data):
+    # print("data",data)
     nodes = []
     links = []
     list_range = get_max_list_length(data)
@@ -491,7 +492,7 @@ def get_sequence_pairs(data, start_time, end_time, event_set1, event_set2, seq_v
     return filtered_events_by_user
 
 
-def find_frequent_pattern(sequences):
+def find_frequent_pattern(sequences, support):
     # 生成项到ID和ID到项的映射
     item_to_id = {}
     id_to_item = {}
@@ -517,7 +518,7 @@ def find_frequent_pattern(sequences):
     # SPMF的路径
     spmf_jar_path = 'spmf.jar'
     # 最小支持度，根据需要调整
-    min_support = "50%"
+    min_support = support
 
     # 构建Java命令
     command = f"java -jar {spmf_jar_path} run VMSP {input_file_path} {output_file_path} {min_support}"
@@ -536,86 +537,8 @@ def find_frequent_pattern(sequences):
         pattern_list.append(pattern_items)
 
     # 清理临时文件
-    # Path(input_file_path).unlink()
+    Path(input_file_path).unlink()
     Path(output_file_path).unlink()
     return pattern_list
 
 
-# def find_patterns_in_sequences(patterns, sequences):
-#     result = {}  # 结果存储
-#     for name, seq in sequences.items():  # 遍历每个序列
-#         matched_indices = []  # 存储匹配模式的下标
-#         for pattern in patterns:  # 检查每个模式
-#             seq_len = len(seq)
-#             pat_len = len(pattern)
-#             for i in range(seq_len - pat_len + 1):  # 遍历序列，寻找匹配
-#                 if seq[i:i+pat_len] == pattern:  # 如果找到匹配
-#                     matched_indices.append(list(range(i, i+pat_len)))  # 记录下标
-#         result[name] = matched_indices
-#     return result
-
-
-def find_pattern_once(pattern, sequence):
-    """
-    搜索模式在序列中的首次出现，不要求连续。返回首次匹配的索引列表，如果未找到，返回None。
-    """
-
-    def helper(start=0, path=[]):
-        if len(path) == len(pattern):
-            return path
-        for i in range(start, len(sequence)):
-            if sequence[i] == pattern[len(path)]:
-                result = helper(i + 1, path + [i])
-                if result is not None:
-                    return result
-        return None
-
-    return helper()
-
-
-def find_patterns_in_sequences(patterns, sequences):
-    results = {}
-    for name, seq in sequences.items():
-        sequence_results = []
-        for pattern in patterns:
-            # 对每个模式进行搜索，只记录首次出现
-            pattern_result = find_pattern_once(pattern, seq)
-            if pattern_result is not None:
-                sequence_results.append(pattern_result)
-        results[name] = sequence_results
-    return results
-
-# def find_pattern_in_sequence(pattern, sequence):
-#     """
-#     在一个序列中搜索一个模式的出现，不要求连续，一旦找到即返回。
-#     """
-#     def dfs(index, start):
-#         if index == len(pattern):  # 所有模式元素都已匹配
-#             return True
-#         for i in range(start, len(sequence)):
-#             if sequence[i] == pattern[index] and dfs(index + 1, i + 1):
-#                 return True
-#         return False
-#
-#     # 从序列的开头开始深度优先搜索
-#     if dfs(0, 0):
-#         return True
-#     return False
-#
-# def find_patterns_in_sequences(patterns, sequences):
-#     results = {}
-#     found_patterns = set()  # 跟踪已找到的模式
-#
-#     for name, seq in sequences.items():
-#         for pattern in patterns:
-#             pattern_key = ','.join(pattern)  # 将模式转换为字符串键
-#             if pattern_key not in found_patterns and find_pattern_in_sequence(pattern, seq):
-#                 # 如果找到模式且此模式之前未被找到
-#                 if name not in results:
-#                     results[name] = []
-#                 results[name].append(pattern)  # 添加模式本身作为结果
-#                 found_patterns.add(pattern_key)  # 标记此模式为已找到
-#                 break  # 已找到模式，不再当前序列中继续搜索其他模式
-#
-#     return results
-#

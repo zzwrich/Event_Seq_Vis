@@ -40,6 +40,25 @@ def extract_sequences(nested_dict):
     return sequences
 
 
+def is_subsequence(sub, full):
+    # 检查子序列是否存在
+    it = iter(full)
+    return all(item in it for item in sub)
+
+
+def find_patterns_in_nested_data(nested_data, patterns):
+    # 检查数据类型
+    if isinstance(nested_data, list):
+        # 如果是列表，检查其中是否包含任何模式
+        return [pattern for pattern in patterns if is_subsequence(pattern, nested_data)]
+    elif isinstance(nested_data, dict):
+        # 如果是字典，递归处理每个键值
+        return {key: find_patterns_in_nested_data(value, patterns) for key, value in nested_data.items()}
+    else:
+        # 其他类型的数据不处理
+        return nested_data
+
+
 class Table:
     def __init__(self, file_path, sheet_name):
         self.file_path = file_path
@@ -53,6 +72,7 @@ class Table:
     def get_data(self):
         # 返回数据的字典表示，每个键对应一列
         return {key: [item[key] for item in self.data] for key in {k for d in self.data for k in d}}
+
 
 class ItemSet:
     def __init__(self, table):
@@ -81,7 +101,7 @@ class ItemSet:
     def filter(self, attribute=None, operator=None, rule=None):
         if attribute is None and operator is None and rule is None:
             return self
-        
+
         if attribute not in self.data:
             return self
         # 规则是数字
@@ -92,14 +112,25 @@ class ItemSet:
                 '=': lambda x, y: x == y,
                 '>': lambda x, y: x > y,
                 '>=': lambda x, y: x >= y,
-                '<=': lambda x, y: x <= y
+                '<=': lambda x, y: x <= y,
             }
             # 数字比较
             if operator in operator_functions:
                 compare_function = operator_functions[operator]
                 result = [i for i in self.processed_data if compare_function(self.data[attribute][i], rule)]
         elif isinstance(rule, list):
-            result = [i for i in self.processed_data if self.data[attribute][i] in rule]
+            print(type(self.data[attribute][0]))
+            if self.data.get(attribute) and (isinstance(self.data[attribute][0], str) or "id" in attribute.lower()):
+                result = [i for i in self.processed_data if self.data[attribute][i] in rule]
+            elif self.data[attribute] and isinstance(self.data[attribute][0], (int, float)):
+                lower_bound = float(rule[0])
+                upper_bound = float(rule[1])
+                # 检查 rule 是否有至少两个元素
+                if len(rule) == 2:
+                    result = [i for i in self.processed_data if lower_bound <= self.data[attribute][i] <= upper_bound]
+                else:
+                    raise ValueError("Rule must contain at least two elements.")
+
         else:
             # 字符串比较
             operator_functions = {
@@ -164,16 +195,51 @@ class ItemSet:
                         stack.append((key, value))
         return new_instance
 
+    # pattern函数用在多次分组之后
+    def pattern(self, attribute, support="50%"):
+        print("support",support)
+        if attribute not in self.data:
+            return self
+        new_instance = self.copy()
+        grouped_data_by_attribute = get_grouped_data_by_attribute(self.processed_data, self.data, attribute)
+        sequences = extract_sequences(grouped_data_by_attribute)
+        patternList = find_frequent_pattern(sequences, support)
+        pattern_in_seq = find_patterns_in_nested_data(grouped_data_by_attribute, patternList)
+        new_instance.processed_data = pattern_in_seq
+        return new_instance
+
+    # def flatten(self):
+    #     new_instance = self.copy()
+    #
+    #     def recursive_flatten(data, prefix=''):
+    #         flattened = {}
+    #         if isinstance(data, dict):
+    #             for key, value in data.items():
+    #                 flattened.update(recursive_flatten(value, prefix=f"{prefix}{key}✖"))
+    #         elif isinstance(data, list):
+    #             flattened[prefix[:-1]] = data
+    #         return flattened
+    #
+    #     if isinstance(new_instance.processed_data, dict):
+    #         new_instance.processed_data = recursive_flatten(new_instance.processed_data)
+    #         return new_instance
+    #     else:
+    #         return {}
+
     def flatten(self):
         new_instance = self.copy()
 
-        def recursive_flatten(data, prefix=''):
+        def recursive_flatten(data):
             flattened = {}
             if isinstance(data, dict):
                 for key, value in data.items():
-                    flattened.update(recursive_flatten(value, prefix=f"{prefix}{key}✖"))
-            elif isinstance(data, list):
-                flattened[prefix[:-1]] = data
+                    if isinstance(value, dict):
+                        for inner_key, inner_value in value.items():
+                            # Concatenate the keys with '✖'
+                            new_key = f"{key}✖{inner_key}"
+                            flattened[new_key] = inner_value
+                    else:
+                        flattened[key] = value
             return flattened
 
         if isinstance(new_instance.processed_data, dict):
@@ -251,6 +317,7 @@ class ItemSet:
                 return {key: process_data(value) for key, value in data.items()}
             else:
                 return 0
+
         if isinstance(self.processed_data, dict):
             if not attributes or not self.processed_data:
                 return {}
@@ -272,8 +339,8 @@ class ItemSet:
     def intersection_set(self, another_set, feature=None):
         new_instance = self.copy()
         if self.processed_data and another_set.processed_data:
-                set1 = self.processed_data
-                set2 = another_set.processed_data
+            set1 = self.processed_data
+            set2 = another_set.processed_data
         if feature is None:
             # 如果没有提供特征，则直接返回两个集合的交集
             new_instance.processed_data = list(set(set1).intersection(set2))
@@ -284,7 +351,8 @@ class ItemSet:
             # 找出在这两个特征集合中共有的值
             common_values = set1_values.intersection(set2_values)
             # 找出具有共有特征值的索引
-            new_instance.processed_data = [i for i in range(len(self.data[feature])) if self.data[feature][i] in common_values]
+            new_instance.processed_data = [i for i in range(len(self.data[feature])) if
+                                           self.data[feature][i] in common_values]
         else:
             new_instance.processed_data = []
         return new_instance
@@ -314,7 +382,6 @@ class ItemSet:
     def get_list_data(self):
         # 从每个属性中选择与 processed_data 索引相匹配的元素
         return {key: [self.data[key][i] for i in self.processed_data] for key in self.data}
-
 
     def get_grouped_data(self):
         def recursive_get_grouped_data(data):

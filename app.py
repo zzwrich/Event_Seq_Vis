@@ -15,8 +15,8 @@ from rulesGraph import op_graph, vis_graph
 
 from tool import extract_substring, process_sankey_data, add_hierarchy_info, \
     add_hierarchy_info_timeline, process_agg_sankey_data, find_center_sequence, align_event_sequences, \
-    extract_non_null_positions, align_sequences_with_moves, get_event_pairs, get_sequence_pairs, find_frequent_pattern, \
-    find_patterns_in_sequences
+    extract_non_null_positions, align_sequences_with_moves, get_event_pairs, get_sequence_pairs, find_frequent_pattern
+
 
 # 定义APP
 app = Flask(__name__)
@@ -65,21 +65,38 @@ def acceptCode():
         data = request.json
         # 获取前端输入的code
         code = data.get('code')
-
+        support = data.get('support')
         code = "result=" + str(code)
         operations = re.findall(r'\.(\w+)\(', code)
+        if "pattern" in code:
+            # 使用正则表达式搜索 pattern() 函数调用
+            pattern_match = re.search(r'pattern\([^)]*\)', code)
+            if pattern_match:
+                # 找到 pattern() 函数调用后，在其中插入新参数
+                old_pattern = pattern_match.group()
+                new_pattern = old_pattern[:-1] + ', "{}")'.format(support)
+                # 替换原始字符串中的 pattern() 函数调用
+                code = code.replace(old_pattern, new_pattern)
         if operations != []:
             last_operation = operations[-1]  # 获取最后一个操作
             if last_operation == "view_type":
-                last_operation = operations[-2]
-                code = extract_substring(code, ".view_type")
+                if(len(operations)>=2):
+                    last_operation = operations[-2]
+                    code = extract_substring(code, ".view_type")
+                else:
+                    last_operation = "original"
+                    code = extract_substring(code, ".view_type")
+                    code += ".get_list_data()"
             if any(keyword in last_operation for keyword in ['filter', 'intersection_set', 'difference_set']):
                 code = code + ".get_list_data()"
             elif any(keyword in last_operation for keyword in ['group_by', 'aggregate', 'flatten']):
                 code = code + ".get_grouped_data()"
-            elif not any(
-                    keyword in last_operation for keyword in ['unique_attr', 'unique_count', 'count', 'view_type']):
+            elif last_operation == "pattern":
                 code = code + ".get_result()"
+
+            # elif not any(
+            #         keyword in last_operation for keyword in ['unique_attr', 'unique_count', 'count', 'view_type']):
+            #     code = code + ".get_result()"
             elif last_operation == 'filterTimeRange':
                 code = code + ".get_list_data()"
                 last_operation = "original"
@@ -247,14 +264,6 @@ def find_pattern():
     patternList = find_frequent_pattern(sequences)
     return jsonify({"patternList": patternList})
 
-
-@app.route('/find_seq_with_pattern', methods=['GET', 'POST'])
-def find_seq_with_pattern():
-    requestData = request.json
-    sequences = requestData.get('sequence')
-    patterns = requestData.get('pattern')
-    result = find_patterns_in_sequences(patterns, sequences)
-    return jsonify({"result": result})
 
 # 启动
 if __name__ == '__main__':
