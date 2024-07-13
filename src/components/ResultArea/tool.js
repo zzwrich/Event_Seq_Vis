@@ -221,7 +221,6 @@ export function getRelatedLinks(nodes, links) {
     const allRelatedLinks = [];
     // 遍历所有节点
     nodes.forEach((node, index) => {
-        console.log("node",node)
         // 获取与当前节点相关的连线
         const relatedLinks = links.filter(link => link.source.name === node || link.target.name === node);
         // 过滤出与当前节点相邻的两个节点的连线
@@ -300,10 +299,6 @@ export function changeGlobalHighlight(d, containerId){
     }
 
     let filterRules={}
-    const myDiv =  document.getElementById(containerId)
-    let codeContext =myDiv.getAttribute("codeContext");
-    const [dataKey] = codeContext.split(".");
-    const originalData = store.state.originalTableData[dataKey]
 
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
     const allChildDivs = {};
@@ -372,7 +367,6 @@ export function changeGlobalHighlight(d, containerId){
 
 export function changeGlobalMouseover(d, containerId){
     store.commit('setCurMouseoverContainer',containerId);
-
     const index = store.state.globalMouseover.findIndex(item => JSON.stringify(item) === JSON.stringify(d));
     if (index !== -1) {
         store.state.globalMouseover.splice(index, 1);
@@ -574,6 +568,38 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
     // 最内层圆形半径
     let radiusDict={}
 
+    function merge_data(data){
+        const mergedData = {}
+        // 处理数据，合并具有相同内键的项
+        for (const outerKey in data) {
+            const innerDict = data[outerKey];
+            for (const innerKey in innerDict) {
+                const value = innerDict[innerKey];
+                if (innerKey === "" || value === 0) {
+                    mergedData[outerKey] = {[innerKey]: value};
+                } else {
+                    let merged = false;
+                    for (const mergedOuterKey in mergedData) {
+                        const mergedInnerDict = mergedData[mergedOuterKey];
+                        if (innerKey in mergedInnerDict && mergedInnerDict[innerKey] !== 0) {
+                            // 合并外键，并更新值
+                            const newOuterKey = [...new Set(mergedOuterKey.split('+').concat(outerKey))].sort().join('+');
+                            mergedData[newOuterKey] = {[innerKey]: mergedInnerDict[innerKey] + value};
+                            // 删除旧的外键
+                            delete mergedData[mergedOuterKey];
+                            merged = true;
+                            break;
+                        }
+                    }
+                    if (!merged) {
+                        mergedData[outerKey] = {[innerKey]: value};
+                    }
+                }
+            }
+        }
+        return mergedData
+    }
+
     function updateRadiusDict(node) {
         node.descendants().forEach(d => {
             const value = d.value; // 使用d.data.value而不是node.value
@@ -590,7 +616,10 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
     if(isAgg && (aggVis === "气泡树图" || aggVis === "紧凑气泡图")){
         sankeyNodesData.forEach((nodeData, index) => {
             const radius = Math.max((nodeData.x1 - nodeData.x0),(nodeData.y1 - nodeData.y0))/r
-            const curData = createHierarchyForTimeLine(nodeData.data,nodeData.name);
+            // const curData = createHierarchyForTimeLine(nodeData.data,nodeData.name);
+            const mergedData = merge_data(nodeData.data);
+            const curData = createHierarchyForTimeLine(mergedData,nodeData.name);
+
             const curRoot = d3.hierarchy(curData)
                 .sum(d => d.value) // 定义如何计算节点大小
                 .sort((a, b) => b.value - a.value);
@@ -632,7 +661,9 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                 hierarchyData = createSunburstData(nodeData.data, seqView);
             }
             else{
-                hierarchyData = createHierarchyForTimeLine(nodeData.data,nodeData.name);
+                // 先合并
+                const mergedData = merge_data(nodeData.data);
+                hierarchyData = createHierarchyForTimeLine(mergedData,nodeData.name);
             }
 
             // 计算每个旭日图的圆心位置和半径
@@ -716,23 +747,25 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                     arc = d3.arc()
                         .startAngle(d => d.x0)
                         .endAngle(d => d.x1)
-                        .innerRadius(d => {
-                            if (d.depth === 2) {
-                                // 对第二层的内半径进行调整，使其与第一层的外半径相匹配
-                                return (d.y0 * 4.2) - ((d.y1 - d.y0) * 4.2) / 2;
-                            } else {
-                                // 其他层使用正常的内半径
-                                return d.y0 * 4.2;
-                            }
-                        })
-                        .outerRadius(d => {
-                            // 对第一层使用不同的外半径
-                            if (d.depth === 1) {
-                                return (d.y0 * 4.2) + ((d.y1 - d.y0) * 4.2) / 2;  // 第一层的宽度减半
-                            } else {
-                                return (d.y1 *4.2); // 其他层使用正常宽度
-                            }
-                        });
+                        // .innerRadius(d => {
+                        //     if (d.depth === 2) {
+                        //         // 对第二层的内半径进行调整，使其与第一层的外半径相匹配
+                        //         return (d.y0 * 4.2) - ((d.y1 - d.y0) * 4.2) / 2;
+                        //     } else {
+                        //         // 其他层使用正常的内半径
+                        //         return d.y0 * 4.2;
+                        //     }
+                        // })
+                        // .outerRadius(d => {
+                        //     // 对第一层使用不同的外半径
+                        //     if (d.depth === 1) {
+                        //         return (d.y0 * 4.2) + ((d.y1 - d.y0) * 4.2) / 2;  // 第一层的宽度减半
+                        //     } else {
+                        //         return (d.y1 *4.2); // 其他层使用正常宽度
+                        //     }
+                        // });
+                        .innerRadius(0)
+                        .outerRadius(radius)
                         // .outerRadius(d => d.y1 *4.2)
                 }
                 else{
@@ -749,7 +782,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         .sort((a, b) => b.value - a.value);
                     d3.pack()
                         .size([radius*2, radius*2])
-                        .padding(1)
+                        .padding(0)
                         (circularRoot);
 
                     const descendants = circularRoot.descendants(); // 获取所有节点
@@ -786,18 +819,25 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                             }
                         })
                         .attr("stroke-opacity", d => d.children ? 1 : null)
+                        .attr('display', d => {
+                            return (d.children&&!d.data.name.includes("root")) ? 'none' : null})
                         .attr("cx", d => d.x)
                         .attr("cy", d => d.y)
                         .attr("r", d => {
                             if(d.data.name.includes("root") || d.children){return d.r}
-                            else{return radiusDict[d.value]}})
+                            else{return radiusDict[d.value]}
+                            // return d.r
+                        })
                         .attr('radius', d => {
                             if(d.data.name.includes("root") || d.children){return d.r}
-                            else{return radiusDict[d.value]}})
+                            else{return radiusDict[d.value]}
+                            // return d.r
+                        })
                         .style('cursor','pointer')
                         .attr("nodeText", nodeData.name)
                         .attr('transform', `translate(${centerX}, ${centerY-radius})`)
-                    d3.pack()
+
+
                     nodes.on('mouseover', function (e, d) {
                         if (!(d.data.name.includes("root"))) { // 过滤掉d.data.name包含root的节点
                             sankeyTooltip.transition()
@@ -822,7 +862,8 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         });
                 }
                 else if(aggVis==="紧凑气泡图"){
-                    const hierarchyData= createHierarchy(nodeData.data,nodeData.name);
+                    const mergedData = merge_data(nodeData.data);
+                    const hierarchyData= createHierarchy(mergedData,nodeData.name);
 
                     const bubbleRoot = d3.hierarchy(hierarchyData)
                         .sum(d => radiusDict[d.value]) // 定义如何计算节点大小
@@ -1038,8 +1079,9 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                     }
                     else{
                         sankeyNodes
-                            .attr('display', d => d.depth ? null : 'none') // 隐藏根节点
-                            .style('stroke', '#fff') // 设置分隔线颜色
+                            .attr('display', d => {
+                                return d.depth ? null : 'none'}) // 隐藏根节点
+                            // .style('stroke', '#fff') // 设置分隔线颜色
                     }
                 }
             }

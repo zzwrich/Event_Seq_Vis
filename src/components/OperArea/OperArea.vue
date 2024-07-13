@@ -97,8 +97,10 @@ export default {
         { url: '../../../static/pieChart.png', vis: "pieChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
         { url: '../../../static/sunBurst.png', vis: "sunBurst", style:"width: 30px; height: 30px;margin: 0 5px;" },
         { url: '../../../static/timeLine.png', vis: "timeLine", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/Sankey.png', vis: "Sankey", style:"width: 35px; height: 35px;margin: 0 5px;" },
-        // { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 35px; height: 35px;margin: 0 5px;" }
+        { url: '../../../static/Sankey.svg', vis: "Sankey", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/lineChart.png', vis: "lineChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/scatter.png', vis: "scatter", style:"width: 25px; height: 25px;margin: 2px 5px;" }
       ],
       checkboxOptions:{},
       filterExpression: {},

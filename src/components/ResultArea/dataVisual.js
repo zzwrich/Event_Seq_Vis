@@ -58,6 +58,9 @@ export default {
             if(visualType==="table"){
                 this.createTable(containerId, data);
             }
+            if(visualType==="scatter"){
+                this.createScatter(containerId, data);
+            }
         }
         if(operation === "unique_attr"){
             if(visualType==="table"){
@@ -120,6 +123,9 @@ export default {
                 }
                 else if(visualType==="Heatmap"){
                     this.createHeatmap(containerId, data, seqView);
+                }
+                else if(visualType==="lineChart"){
+                    this.createLineChart(containerId, data, seqView);
                 }
                 else{
                     this.createTimeLine(containerId, data, seqView);
@@ -267,6 +273,215 @@ export default {
     container.innerHTML = ''; // 清空容器
     const topLevelTable = renderData(data, 1); // 从第一级开始渲染
     container.appendChild(topLevelTable);
+    },
+
+    createScatter(containerId, data){
+        // 数值型数据的键
+        const allDataKeys = Object.keys(data)
+        const numericKeys = allDataKeys.filter(key =>
+            data[key].every(value => typeof value === 'number')
+        );
+        // 创建下拉框
+        const selectAttr1 = document.createElement('select');
+        selectAttr1.id = 'time-selection';
+        selectAttr1.className = 'my-select';
+
+        numericKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.innerText = key;
+            selectAttr1.appendChild(option);
+        });
+        selectAttr1.selectedIndex = 0; // 设置下拉框默认选择第一个选项
+
+        const selectAttr2 = document.createElement('select');
+        selectAttr2.id = 'time-selection';
+        selectAttr2.className = 'my-select';
+
+        numericKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.innerText = key;
+            selectAttr2.appendChild(option);
+        });
+        selectAttr2.selectedIndex = 1; // 设置下拉框默认选择第一个选项
+
+        selectAttr1.addEventListener('change', function() {
+            drawScatter(data, selectAttr1.value, selectAttr2.value)
+        });
+
+        selectAttr2.addEventListener('change', function() {
+            drawScatter(data, selectAttr1.value, selectAttr2.value)
+        });
+
+        const container = document.getElementById(containerId);
+        container.appendChild(selectAttr1);
+        container.appendChild(selectAttr2);
+
+        // 设置SVG容器
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        const lastSize = { width: container.clientWidth, height: container.clientHeight };
+
+        const containerRect = container.getBoundingClientRect();
+        const chartWidth = 0.88 * containerWidth;
+        const chartHeight = 0.85 * containerHeight;
+        let margin = { top: 0.025 * containerHeight, left: (containerWidth - chartWidth) / 2 };
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('class', 'svgContainer' + containerId)
+            .attr('width', containerWidth)
+            .attr('height', containerHeight-55)
+            .attr('overflow', 'auto');
+
+        let chartGroup, xScale, yScale
+        drawScatter(data, selectAttr1.value, selectAttr2.value)
+        function drawScatter(data, attr1, attr2){
+            d3.select(container)
+                .select(".tooltip")
+                .remove();
+            svg.selectAll('*').remove();
+
+            const data1 = data[attr1]
+            const data2 = data[attr2]
+            // 合并数据
+            const scatterData = data1.map((d, i) => ({x: d, y: data2[i]}));
+
+            const tooltip = d3.select(container)
+                .append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0);
+
+            chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // 创建比例尺
+            xScale = d3.scaleLinear()
+                .domain(d3.extent(scatterData, d => d.x))
+                .range([0, chartWidth]);
+
+            yScale = d3.scaleLinear()
+                .domain(d3.extent(scatterData, d => d.y))
+                .range([chartHeight, 0]);
+            // 创建轴线
+            const xAxis = d3.axisBottom(xScale);
+            const yAxis = d3.axisLeft(yScale);
+
+            // 添加x轴
+            chartGroup.append('g')
+                .attr('transform', `translate(0, ${chartHeight})`)
+                .attr('class', 'x-axis')
+                .call(xAxis);
+            // 添加y轴
+            chartGroup.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            // 绘制数据点
+            chartGroup.selectAll(".dot")
+                .data(scatterData)
+                .enter().append("circle")
+                .attr("class", "dot")
+                .attr("r", 3.5)
+                .attr("cx", d => xScale(d.x))
+                .attr("cy", d => yScale(d.y))
+                .style("fill", "steelblue")
+                .style("cursor", "pointer")
+                .on('mouseover', function(event, d) {
+                    const myObject1 = {};
+                    const myObject2 = {};
+                    myObject1[attr1] = d.x.toString()
+                    myObject2[attr2] = d.y.toString()
+                    changeGlobalMouseover(myObject1, containerId)
+                    changeGlobalMouseover(myObject2, containerId)
+
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`${attr1}: <strong>${d.x}</strong><br>${attr2}: <strong>${d.y}</strong>`)
+                        .style('left', (event.pageX)-containerRect.left + 'px')
+                        .style('top', (event.pageY)-containerRect.top + 'px');
+                })
+                .on('mouseout', function(event, d) {
+                    const myObject1 = {};
+                    const myObject2 = {};
+                    myObject1[attr1] = d.x.toString()
+                    myObject2[attr2] = d.y.toString()
+                    changeGlobalMouseover(myObject1, containerId)
+                    changeGlobalMouseover(myObject2, containerId)
+
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr('filter', '');
+                    tooltip.transition()
+                        .duration(500)
+                        .style('opacity', 0);
+                })
+                .on('click', function(event, d) {
+                    event.stopPropagation();
+                    const myObject1 = {};
+                    const myObject2 = {};
+                    myObject1[attr1] = d.x.toString()
+                    myObject2[attr2] = d.y.toString()
+                    changeGlobalHighlight(myObject1, containerId)
+                    changeGlobalHighlight(myObject2, containerId)
+                })
+        }
+
+        // 使用 ResizeObserver 监听容器大小变化
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.contentBoxSize) {
+                    resizeLine()
+                }
+            }
+        });
+        // 观察 svg 容器大小变化
+        resizeObserver.observe(container);
+        function resizeLine() {
+            const threshold = 20; // 阈值
+            // 获取新的容器尺寸
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            const chartWidth = 0.88 * containerWidth;
+            const chartHeight = 0.85 * containerHeight;
+            // 检查尺寸变化是否超过阈值
+            if (Math.abs(containerWidth - lastSize.width) > threshold ||
+                Math.abs(containerHeight - lastSize.height) > threshold) {
+
+                margin = {
+                    top: 0.02 * containerHeight,
+                    left: (containerWidth - chartWidth) / 2,
+                };
+
+                svg.attr('width', containerWidth)
+                    .attr('height', containerHeight -55)
+
+                xScale.range([0, chartWidth]);
+                yScale.range([chartHeight, 0]);
+
+                svg.attr('width', containerWidth)
+                    .attr('height', containerHeight)
+
+                chartGroup.attr('transform', `translate(${margin.left}, ${margin.top})`)
+                // 更新坐标轴位置和调用
+                chartGroup.select('.x-axis')
+                    .attr('transform', `translate(0,${chartHeight})`)
+                    .call(d3.axisBottom(xScale));
+
+                chartGroup.select('.y-axis').call(d3.axisLeft(yScale));
+
+                chartGroup.selectAll(".dot")
+                    .attr("cx", d => xScale(d.x))
+                    .attr("cy", d => yScale(d.y))
+
+                // 更新记录的尺寸
+                lastSize.width = containerWidth;
+                lastSize.height = containerHeight;
+            }
+        }
     },
 
     createBarChart(containerId, data){
@@ -1548,6 +1763,283 @@ export default {
 
     },
 
+    createLineChart(containerId, originData) {
+        // 检查数据的有效性
+        if (!originData || Object.keys(originData).length === 0) {
+            return;
+        }
+
+        const data = flatten(originData)
+        const allDataKeys = Object.keys(data)
+        // 数值型数据的键
+        const numericKeys = Object.keys(data[allDataKeys[0]]).filter(key =>
+            data[allDataKeys[0]][key].every(value => typeof value === 'number')
+        );
+
+        // 创建下拉框
+        const selectAttr = document.createElement('select');
+        selectAttr.id = 'time-selection';
+        selectAttr.className = 'my-select';
+        // 添加下拉选项
+        const defaultOption = document.createElement('option');
+        defaultOption.innerText = 'Attribute'; // 这里设置您想要显示的默认文字
+        defaultOption.disabled = true; // 禁止选择这个选项
+        defaultOption.selected = true; // 默认选中这个选项
+        // Add numeric keys as options
+        numericKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.innerText = key;
+            selectAttr.appendChild(option);
+        });
+
+        let codeContext = store.state.curExpression
+        const regex1 = /group_by\("([^"]+)"\)/g; // 使用全局标志`g`进行全文搜索
+        const matches1 = codeContext.matchAll(regex1);
+        const parameters = [];
+        for (const match of matches1) {
+            parameters.push(match[1]);
+        }
+        const foundKey = parameters[parameters.length-1]
+
+        const container = document.getElementById(containerId);
+        document.getElementById(containerId).appendChild(selectAttr);
+
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        const lastSize = { width: container.clientWidth, height: container.clientHeight };
+
+        const containerRect = container.getBoundingClientRect();
+        const chartWidth = 0.88 * containerWidth;
+        const chartHeight = 0.85 * containerHeight;
+        let margin = { top: 0.02 * containerHeight, left: (containerWidth - chartWidth) / 2 };
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('class', 'svgContainer' + containerId)
+            .attr('width', containerWidth)
+            .attr('height', containerHeight-55)
+            .attr('overflow', 'auto');
+
+        let allUserData
+        let chartGroup, xScale, yScale
+
+        createLine(containerId,data,numericKeys[0])
+
+        selectAttr.addEventListener('change', function() {
+            createLine(containerId,data,selectAttr.value)
+        });
+
+        store.watch(() => store.state.globalColorMap, (newValue) => {
+            drawLine(allUserData, newValue)
+        });
+
+        function createLine(containerId,data,seqView) {
+            allUserData = []
+            Object.keys(data).forEach((username, index) => {
+                allUserData.push({[username]: data[username][seqView]})
+            })
+            const colorMap = store.state.globalColorMap
+            drawLine(allUserData, colorMap)
+        }
+        function drawLine(data,colorMap) {
+            d3.select(container)
+                .select(".tooltip")
+                .remove();
+            svg.selectAll('*').remove();
+            chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // 在 SVG 容器外部创建一个提示框元素
+            const tooltip = d3.select(container)
+                .append("div")
+                .attr("class", "tooltip")
+
+            // 确定最大的数组长度以定义x轴范围
+            const maxLength = d3.max(data, d => Object.values(d)[0].length);
+
+            xScale = d3.scaleLinear()
+                .domain([0, maxLength - 1])
+                .range([0, chartWidth]);
+
+            // 确定y轴的范围
+            const yMin = d3.min(data, d => d3.min(Object.values(d)[0]));
+            const yMax = d3.max(data, d => d3.max(Object.values(d)[0]));
+
+            yScale = d3.scaleLinear()
+                .domain([yMin, yMax])
+                .range([chartHeight, 0]);
+
+            const xAxis = d3.axisBottom(xScale);
+            const yAxis = d3.axisLeft(yScale);
+
+            // 添加x轴
+            chartGroup.append('g')
+                .attr('transform', `translate(0, ${chartHeight})`)
+                .attr('class', 'x-axis')
+                .call(xAxis);
+            // 添加y轴
+            chartGroup.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            // 定义折线生成器
+            const line = d3.line()
+                .x((d, i) => xScale(i))
+                .y(d => yScale(d));
+
+            // 绘制每条折线
+            data.forEach(d => {
+                const key = Object.keys(d)[0];
+                const values = d[key];
+                chartGroup.append('path')
+                    .datum(values)
+                    .attr('class', 'line')
+                    .attr('d', line)
+                    .attr('data-key', key)
+                    .style('stroke', d => {
+                        if (Object.keys(colorMap).includes(key)) {
+                            return colorMap[key];
+                        }
+                        return "#DCDCDC"
+                    })
+                    .style('stroke-width', "1.5px")
+                    .style('fill', 'none')
+                    .style('cursor','pointer')
+                    .on('mouseover', function (event, d) {
+                        const myObject = {};
+                        myObject[foundKey] = key
+                        changeGlobalMouseover(myObject, containerId)
+
+                        tooltip.transition()
+                            .duration(200)
+                            .style('opacity', 0.8);
+
+                        const mouse = d3.pointer(event);
+                        const mouseX = mouse[0];
+                        const mouseIndex = Math.round(xScale.invert(mouseX));
+                        if (mouseIndex >= 0 && mouseIndex < values.length) {
+                            const mouseY = values[mouseIndex];
+                            tooltip.transition()
+                                .duration(200)
+                                .style("opacity", .9);
+                            tooltip.html(`${key}: <strong>${mouseY}</strong>`)
+                                .style('left', (event.pageX)-containerRect.left + 'px')
+                                .style('top', (event.pageY)-containerRect.top + 'px')}
+                    })
+                    .on('mouseout', function () {
+                        const myObject = {};
+                        myObject[foundKey] = key
+                        changeGlobalMouseover(myObject, containerId)
+
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('filter', '');
+                        tooltip.transition()
+                            .duration(500)
+                            .style('opacity', 0);
+                    })
+                    .on('click', function() {
+                        event.stopPropagation();
+                        const myObject = {};
+                        myObject[foundKey] = key
+                        changeGlobalHighlight(myObject, containerId)
+                    })
+            });
+        }
+
+        // 使用 ResizeObserver 监听容器大小变化
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.contentBoxSize) {
+                  resizeLine()
+                }
+            }
+        });
+        // 观察 svg 容器大小变化
+        resizeObserver.observe(container);
+        function resizeLine() {
+            const threshold = 20; // 阈值
+            // 获取新的容器尺寸
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            const chartWidth = 0.88 * containerWidth;
+            const chartHeight = 0.85 * containerHeight;
+            // 检查尺寸变化是否超过阈值
+            if (Math.abs(containerWidth - lastSize.width) > threshold ||
+                Math.abs(containerHeight - lastSize.height) > threshold) {
+
+                margin = {
+                    top: 0.02 * containerHeight,
+                    left: (containerWidth - chartWidth) / 2,
+                };
+
+                svg.attr('width', containerWidth)
+                    .attr('height', containerHeight -55)
+
+                xScale.range([0, chartWidth]);
+                yScale.range([chartHeight, 0]);
+
+                svg.attr('width', containerWidth)
+                    .attr('height', containerHeight)
+
+                svg.style('width', containerWidth + 'px')
+                    .style('height', containerHeight + 'px');
+
+                chartGroup.attr('transform', `translate(${margin.left}, ${margin.top})`)
+                // 更新坐标轴位置和调用
+                chartGroup.select('.x-axis')
+                    .attr('transform', `translate(0,${chartHeight})`)
+                    .call(d3.axisBottom(xScale));
+
+                chartGroup.select('.y-axis').call(d3.axisLeft(yScale));
+
+                const line = d3.line()
+                    .x((d, i) => xScale(i))
+                    .y(d => yScale(d));
+                chartGroup.selectAll('.line')
+                    .attr('d', line);
+
+                // 更新记录的尺寸
+                lastSize.width = containerWidth;
+                lastSize.height = containerHeight;
+            }
+        }
+
+        store.watch(() => store.state.globalHighlight, (newValue) => {
+            const filterParameters = store.state.filterRules
+            if(Object.keys(filterParameters).includes(foundKey)){
+                // 更新折线显示
+                svg.selectAll(".line")
+                    .style("display", function() {
+                        const key = d3.select(this).attr('data-key');
+                        return filterParameters[foundKey].includes(key) ? null : "none";
+                    });
+            }
+            else{
+                svg.selectAll(".line")
+                    .style("display", null);
+            }
+        }, { deep: true });
+
+        store.watch(() => store.state.globalMouseover, (newValue) => {
+            const filterParameters = store.state.mouseoverRules
+            if(Object.keys(filterParameters).includes(foundKey)){
+                // 更新折线显示
+                svg.selectAll(".line")
+                    .classed("highlight-path", function() {
+                        const key = d3.select(this).attr('data-key');
+                        return !filterParameters[foundKey].includes(key);
+                    });
+            }
+            else{
+                svg.selectAll(".line")
+                    .classed("highlight-path", false); // 添加高亮类
+            }
+        }, { deep: true });
+    },
+
     createPatternLine(containerId, originData) {
         // 检查数据的有效性
         if (!originData || Object.keys(originData).length === 0) {
@@ -1577,36 +2069,6 @@ export default {
         // 创建新的包装容器
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'controls-container';
-        // // 创建输入框
-        // const inputBox = document.createElement('input');
-        // // 模式挖掘算法最小支持度输入框
-        // inputBox.id = 'support-input'; // 设置输入框的 ID
-        // inputBox.className = 'el-input'; // 设置输入框的样式类
-        // inputBox.type = 'text'; // 设置输入类型为数字
-        // inputBox.placeholder = ''; // 设置占位符
-        //
-        // // 创建百分号标签
-        // const percentSpan = document.createElement('span');
-        // percentSpan.className = 'percent-label'; // 设置样式类
-        // percentSpan.textContent = '%'; // 设置文本内容
-        //
-        // // 创建包装容器
-        // const inputContainer = document.createElement('div');
-        // inputContainer.className = 'support-container'; // 设置容器样式类
-        //
-        // // 创建按钮
-        // const button = document.createElement('button');
-        // button.id = 'submit-button'; // 设置按钮的 ID
-        // button.className = 'el-button'; // 设置按钮的样式类
-        // button.textContent = 'Minimum Support:'; // 设置按钮显示的文本
-        //
-        // inputContainer.appendChild(button);
-        // inputContainer.appendChild(inputBox);
-        // inputContainer.appendChild(percentSpan);
-
-        // 将元素添加到新的包装容器中
-        // controlsContainer.appendChild(inputContainer);
-        // container.appendChild(controlsContainer);
 
         let data = flattenPattern(originData)
         function addUniquePatternsToData(data, uniquePatterns) {
@@ -2380,12 +2842,15 @@ export default {
         createChart(containerId,data,seqView)
 
         store.watch(() => store.state.globalColorMap, () => {
-            // 更改全局变量的值
-            store.commit('setTimeLineData',{ key: containerId, value: {data: data, seqView:store.state.curColorMap} })
-            // 获取当前选中的值
-            createChart(containerId,data,store.state.curColorMap)
-            selectBox.selectedIndex = 0;
-            aggBox.selectedIndex = 0;
+            const myDiv= document.getElementById(containerId)
+            if(myDiv.getAttribute("codeContext").includes(".view_type(\"timeLine\")")){
+                // 更改全局变量的值
+                store.commit('setTimeLineData',{ key: containerId, value: {data: data, seqView:store.state.curColorMap} })
+                // 获取当前选中的值
+                createChart(containerId,data,store.state.curColorMap)
+                selectBox.selectedIndex = 0;
+                aggBox.selectedIndex = 0;
+            }
         });
         // 当取消筛选的时候也需要重新绘制
         store.watch(() => store.state.isClickCancelFilter, () => {
@@ -2536,8 +3001,10 @@ export default {
                                 const parts = str.split("-");
                                 let circleId = parts[parts.length - 1]; // 获取最后一个部分
                                 const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                if(Object.keys(data).includes(circlename)){
-                                    return !keys.includes(parseAction(data[circlename][curKey][circleId]))&&!d.children;
+                                const nameList = circlename.split("+")
+                                const firstname = nameList[0]
+                                if(Object.keys(data).includes(firstname)){
+                                    return !keys.includes(parseAction(data[firstname][curKey][circleId]))&&!d.children;
                                 }
                             });
                         }
@@ -2547,9 +3014,11 @@ export default {
                                 const parts = str.split("-");
                                 let circleId = parts[parts.length - 1]; // 获取最后一个部分
                                 const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                if(Object.keys(data).includes(circlename)){
-                                    if(data[circlename][curKey][circleId]){
-                                        return !keys.includes(parseAction(data[circlename][curKey][circleId]));
+                                const nameList = circlename.split("+")
+                                const firstname = nameList[0]
+                                if(Object.keys(data).includes(firstname)){
+                                    if(data[firstname][curKey][circleId]){
+                                        return !keys.includes(parseAction(data[firstname][curKey][circleId]));
                                     }
                                 }
                             });
@@ -2599,20 +3068,20 @@ export default {
                 }
                 //高亮数据项
                 if(Object.keys(filterParameters).length!==0){
-
                     const allKeys = Object.keys(filterParameters)
                     for (let curKey of allKeys){
                         const keys = filterParameters[curKey]
                         const circles = svg.selectAll('.event-circle');
 
-                        circles
-                            .each(function(d) {
+                        circles.each(function(d) {
                                 const str = d3.select(this).attr('id')
                                 const parts = str.split("-");
                                 let circleId = parts[parts.length - 1]; // 获取最后一个部分
                                 const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                if(Object.keys(data).includes(circlename)){
-                                    if (keys.includes(parseAction(data[circlename][curKey][circleId]))) {
+                                const nameList = circlename.split("+")
+                                const firstname = nameList[0]
+                                if(Object.keys(data).includes(firstname)){
+                                    if (data[firstname][curKey][circleId]&&keys.includes(parseAction(data[firstname][curKey][circleId]))) {
                                         d3.select(this).classed('mouseover-circle', true); // 添加类名到满足条件的圆圈上
                                     }
                                 }
@@ -3701,11 +4170,13 @@ export default {
         }, { deep: true });
     },
 
-    createHeatmap(containerId, data, seqView) {
+    createHeatmap(containerId, originData, seqView) {
         // 检查数据的有效性
-        if (!data || Object.keys(data).length === 0) {
+        if (!originData || Object.keys(originData).length === 0) {
             return;
         }
+
+        const data = flatten(originData)
 
         const container = document.getElementById(containerId);
         const containerWidth = container.clientWidth;
@@ -3716,33 +4187,9 @@ export default {
         let width = containerWidth - margin.left - margin.right
         let height = containerHeight - margin.top - margin.bottom;
 
-        const extractedAccounts = Object.keys(data).reduce((acc, key) => {
-            acc[key] = data[key][seqView];
-            return acc;
-        }, {});
-
-        // 初始化一个对象来存储每个用户转换到另一个用户的次数
-        const transitions = {};
-        // 计算转换次数
-        Object.values(extractedAccounts).forEach(users => {
-            for (let i = 0; i < users.length - 1; i++) {
-                const pair = `${users[i]}->${users[i + 1]}`;
-                transitions[pair] = (transitions[pair] || 0) + 1;
-            }
-        });
-        // 输出转换次数
-        const users = Array.from(new Set([...Object.values(extractedAccounts).flat()]));
-        const colorScale = d3.scaleSequential(d3.interpolateGnBu)
-            .domain([0, d3.max(Object.values(transitions))]);
-        // 创建比例尺映射用户到坐标轴位置
-        const xScale = d3.scaleBand().domain(users).range([0, width]).padding(0.1); // 添加一些padding以避免方块之间紧挨;
-        const yScale = d3.scaleBand().domain(users).range([0, height]).padding(0.1); // 添加一些padding以避免方块之间紧挨; // 假设每个格子的高度是20px
-
-        // 解析转换次数数据，创建热力图需要的数据结构
-        const heatmapData = Object.entries(transitions).map(([key, value]) => {
-            const [from, to] = key.split('->');
-            return { from, to, value };
-        });
+        let lastWidth = 0;
+        let lastHeight = 0;
+        const sizeChangeThreshold = 20; // 容器尺寸变化超过10px才重绘
 
         const svg = d3.select(container)
             .append('svg')
@@ -3751,100 +4198,136 @@ export default {
             .attr('height', '100%')
             .attr('overflow','auto')
 
-        const graph = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top})`);
+        let legend, xScale, yScale, xAxis, yAxis, graph, legendAxis
 
-        const tooltip = d3.select('body').append('div')
-            .attr('class', 'tooltip') // 可以在CSS中定义样式
-            .style('opacity', 0);
+        drawHeatMap(seqView)
 
-        // 绘制热力图格子
-        graph.selectAll('rect')
-            .data(heatmapData)
-            .enter()
-            .append('rect')
-            .attr('x', d => xScale(d.from))
-            .attr('y', d => yScale(d.to))
-            .attr("rx", 6)
-            .attr("ry", 6)
-            .attr('width', xScale.bandwidth()) // 这里bandwidth()根据比例尺的范围和用户数量动态计算
-            .attr('height', yScale.bandwidth()) // 同上
-            .attr('fill', d => colorScale(d.value))
-            .on('mouseover', function(event, d) {
-                tooltip.transition()
-                    .duration(200)
-                    .style('opacity', .9);
-                tooltip.html(d.from + '--' + d.to + " " +  " <strong>" + d.value + "</strong>")
-                    .style('left', (event.pageX) + 'px')
-                    .style('top', (event.pageY - 28) + 'px');
-            })
-            .on('mouseout', function(d) {
-                tooltip.transition()
-                    .duration(500)
-                    .style('opacity', 0);
-            });
-        // 添加轴标签
-        const xAxis = d3.axisTop(xScale).tickSize(0);
-        const yAxis = d3.axisLeft(yScale).tickSize(0);
-
-        graph.append('g')
-            .attr('class', 'heatmapX-axis')
-            .call(xAxis)
-            .selectAll('text')
-
-        graph.selectAll('.heatmapX-axis .domain, .heatmapX-axis line')
-            .style('stroke', 'none'); // 将轴线和刻度线的颜色设置为透明
-
-        graph.append('g')
-            .attr('class', 'heatmapY-axis')
-            .call(yAxis);
-
-        graph.selectAll('.heatmapY-axis .domain, .heatmapY-axis line')
-            .style('stroke', 'none'); // 将轴线和刻度线的颜色设置为透明
-
-        // 图例尺寸和位置参数
-        let legendWidth = 0.9*margin.left, legendHeight = 0.02*containerHeight
-        const colorScaleDomain = colorScale.domain();
-        // 创建图例容器
-        const legend = svg.append("g")
-            .attr("class", "legend")
-            .attr("transform", `translate(${containerWidth - margin.right-margin.left}, ${containerHeight - 0.8*margin.bottom})`);
-        // 创建图例的颜色条 - 使用渐变
-        const linearGradient = legend.append("defs")
-            .append("linearGradient")
-            .attr("id", "linear-gradient");
-
-        colorScale.ticks().forEach((t, i, n) => {
-            linearGradient.append("stop")
-                .attr("offset", `${(100 * i) / n.length}%`)
-                .attr("stop-color", colorScale(t));
+        store.watch(() => store.state.curColorMap, (newValue) => {
+            drawHeatMap(newValue)
         });
-        // 添加颜色条矩形
-        legend.append("rect")
-            .attr("width", legendWidth)
-            .attr("height", legendHeight)
-            .style("fill", "url(#linear-gradient)");
-        // 创建图例的比例尺，用于定位标签
-        const legendScale = d3.scaleLinear()
-            .domain([colorScaleDomain[0], colorScaleDomain[colorScaleDomain.length - 1]]) // 假设是连续比例尺
-            .range([0, legendWidth]);
 
-        // 创建一个只有两个刻度的轴（最小值和最大值）
-        const legendAxis = d3.axisBottom(legendScale)
-            .tickValues([colorScaleDomain[0], colorScaleDomain[colorScaleDomain.length - 1]]) // 只显示最小值和最大值
-        // 添加到图例
-        legend.append("g")
-            .attr("class", "legend-axis")
-            .attr("transform", `translate(0, ${legendHeight})`)
-            .call(legendAxis);
-        legend.selectAll(".domain, .tick line").style("stroke", "none"); // 方法 1
-        legend.selectAll(".tick text")
-            .style("stroke", "gray") // 设置刻度线颜色为灰色
-            .style("fill", "gray"); // 设置刻度文本颜色为灰色
+        function drawHeatMap(seqView){
+            svg.selectAll('*').remove();
 
-        let lastWidth = 0;
-        let lastHeight = 0;
-        const sizeChangeThreshold = 20; // 容器尺寸变化超过10px才重绘
+            const extractedAccounts = Object.keys(data).reduce((acc, key) => {
+                acc[key] = data[key][seqView];
+                return acc;
+            }, {});
+
+            // 初始化一个对象来存储每个用户转换到另一个用户的次数
+            const transitions = {};
+            // 计算转换次数
+            Object.values(extractedAccounts).forEach(users => {
+                for (let i = 0; i < users.length - 1; i++) {
+                    const pair = `${users[i]}->${users[i + 1]}`;
+                    transitions[pair] = (transitions[pair] || 0) + 1;
+                }
+            });
+            // 输出转换次数
+            const users = Array.from(new Set([...Object.values(extractedAccounts).flat()]));
+            const colorScale = d3.scaleSequential(d3.interpolateGnBu)
+                .domain([0, d3.max(Object.values(transitions))]);
+            // 创建比例尺映射用户到坐标轴位置
+            xScale = d3.scaleBand().domain(users).range([0, width]).padding(0.1); // 添加一些padding以避免方块之间紧挨;
+            yScale = d3.scaleBand().domain(users).range([0, height]).padding(0.1); // 添加一些padding以避免方块之间紧挨; // 假设每个格子的高度是20px
+
+            // 解析转换次数数据，创建热力图需要的数据结构
+            const heatmapData = Object.entries(transitions).map(([key, value]) => {
+                const [from, to] = key.split('->');
+                return { from, to, value };
+            });
+
+            graph = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip') // 可以在CSS中定义样式
+                .style('opacity', 0);
+
+            // 绘制热力图格子
+            graph.selectAll('rect')
+                .data(heatmapData)
+                .enter()
+                .append('rect')
+                .attr('x', d => xScale(d.from))
+                .attr('y', d => yScale(d.to))
+                .attr("rx", 6)
+                .attr("ry", 6)
+                .attr('width', xScale.bandwidth()) // 这里bandwidth()根据比例尺的范围和用户数量动态计算
+                .attr('height', yScale.bandwidth()) // 同上
+                .attr('fill', d => colorScale(d.value))
+                .on('mouseover', function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style('opacity', .9);
+                    tooltip.html(d.from + '--' + d.to + " " +  " <strong>" + d.value + "</strong>")
+                        .style('left', (event.pageX) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseout', function(d) {
+                    tooltip.transition()
+                        .duration(500)
+                        .style('opacity', 0);
+                });
+            // 添加轴标签
+            xAxis = d3.axisTop(xScale).tickSize(0);
+            yAxis = d3.axisLeft(yScale).tickSize(0);
+
+            // graph.append('g')
+            //     .attr('class', 'heatmapX-axis')
+            //     .call(xAxis)
+            //     .selectAll('text')
+
+            graph.selectAll('.heatmapX-axis .domain, .heatmapX-axis line')
+                .style('stroke', 'none'); // 将轴线和刻度线的颜色设置为透明
+
+            graph.append('g')
+                .attr('class', 'heatmapY-axis')
+                .call(yAxis);
+
+            graph.selectAll('.heatmapY-axis .domain, .heatmapY-axis line')
+                .style('stroke', 'none'); // 将轴线和刻度线的颜色设置为透明
+
+            // 图例尺寸和位置参数
+            let legendWidth = 0.9*margin.left, legendHeight = 0.02*containerHeight
+            const colorScaleDomain = colorScale.domain();
+            // 创建图例容器
+            legend = svg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${containerWidth - margin.right-margin.left}, ${containerHeight - 0.8*margin.bottom})`);
+            // 创建图例的颜色条 - 使用渐变
+            const linearGradient = legend.append("defs")
+                .append("linearGradient")
+                .attr("id", "linear-gradient");
+
+            colorScale.ticks().forEach((t, i, n) => {
+                linearGradient.append("stop")
+                    .attr("offset", `${(100 * i) / n.length}%`)
+                    .attr("stop-color", colorScale(t));
+            });
+            // 添加颜色条矩形
+            legend.append("rect")
+                .attr("width", legendWidth)
+                .attr("height", legendHeight)
+                .style("fill", "url(#linear-gradient)");
+            // 创建图例的比例尺，用于定位标签
+            const legendScale = d3.scaleLinear()
+                .domain([colorScaleDomain[0], colorScaleDomain[colorScaleDomain.length - 1]]) // 假设是连续比例尺
+                .range([0, legendWidth]);
+
+            // 创建一个只有两个刻度的轴（最小值和最大值）
+            legendAxis = d3.axisBottom(legendScale)
+                .tickValues([colorScaleDomain[0], colorScaleDomain[colorScaleDomain.length - 1]]) // 只显示最小值和最大值
+            // 添加到图例
+            legend.append("g")
+                .attr("class", "legend-axis")
+                .attr("transform", `translate(0, ${legendHeight})`)
+                .call(legendAxis);
+            legend.selectAll(".domain, .tick line").style("stroke", "none"); // 方法 1
+            legend.selectAll(".tick text")
+                .style("stroke", "gray") // 设置刻度线颜色为灰色
+                .style("fill", "gray"); // 设置刻度文本颜色为灰色
+        }
 
         function updateHeatmapSize(container) {
             const newWidth = container.clientWidth;
@@ -3866,8 +4349,8 @@ export default {
                     .attr('width', newWidth)
                     .attr('height', newHeight);
 
-                legendWidth = 0.9*margin.left
-                legendHeight = 0.02*newHeight
+                const legendWidth = 0.9*margin.left
+                const legendHeight = 0.02*newHeight
                 legend.attr("transform", `translate(${newWidth - margin.right-margin.left}, ${newHeight - 0.8*margin.bottom})`);
 
                 legend.selectAll('rect')

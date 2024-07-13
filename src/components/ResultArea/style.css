@@ -218,7 +218,7 @@
 }
 
 .highlight-path {
-	stroke: #DCDCDC;
+	stroke: #DCDCDC !important;
 }
 
 /* 勾选框样式 */
