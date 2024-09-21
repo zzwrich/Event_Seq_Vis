@@ -3,7 +3,7 @@
 	grid-template-columns: repeat(10, 1fr);
 	grid-template-rows: repeat(10, 1fr);
 	gap: 10px;
-	height: 98vh;
+	height: 96vh;
 	/*background: #eeeeee;*/
 	/*border: 6px solid #eeeeee;*/
 }

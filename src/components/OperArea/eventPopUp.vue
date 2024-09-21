@@ -1,13 +1,13 @@
 <template>
-  <div class="eventPopup" v-if="visible" :style="{ left: left + 'px', top: top + 'px'}">
-    <check style="width: 10%;height: 10%;cursor: pointer;color: #606266;position: absolute;left:70%;top: 1.5%"
+  <div class="eventPopup" v-if="visible" :style="{ left: left + 'px', top: top + 40 + 'px' }" style="height: 15%;width: 15%">
+    <check style="width: 15%;height: 15%;cursor: pointer;color: #606266;position: absolute;left:60%;top: 1.5%"
            @click="analyseEvent" class="myIcon"></check>
-    <delete style="width: 10%;height: 10%;cursor: pointer;color: #606266;position: absolute;left:80%;top: 1.5%"
+    <delete style="width: 15%;height: 15%;cursor: pointer;color: #606266;position: absolute;left:70%;top: 1.5%"
            @click="clearEvent" class="myIcon"></delete>
-    <Close style="width: 10%;height: 10%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
+    <Close style="width: 15%;height: 15%;position: absolute;left:80%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
     <!-- 第一个内容块 -->
     <div style="height: 100%;">
-      <div class="content-block" style="margin-top: -30px">
+      <div class="content-block" style="margin-top: -30px;">
         <h5>Time Range</h5>
 
         <div style="margin-top: -20px">
@@ -22,7 +22,7 @@
                 @input="handleStartTimeChange"
                 style="width: 90px"
             ></el-input>
-            <div style="color: grey;margin-left: -18px">-</div>
+            <div style="color: grey;margin-left: -20px">-</div>
             <!-- 最大值输入 -->
             <el-input
                 v-model.number="endNum"
@@ -35,7 +35,7 @@
             <el-select
                 v-model="selectedUnit"
                 placeholder="unit"
-                style="width: 100px; border: none;background: none;margin-left: -2px"
+                style="width: 125px; border: none;background: none;margin-left: -20px"
                 size="small">
               <el-option
                   v-for="item in units"
@@ -48,25 +48,25 @@
         </div>
       </div>
       <!-- 分割线 -->
-      <div class="splitLine"></div>
-      <!-- 第二个内容块 -->
-      <div class="content-block" style="margin-top: -26px">
-        <h5>Event Analyse</h5>
-        <div style="margin-top: -16px">
-          <el-select
-              v-model="selectedEventAnalyse"
-              placeholder="event Analyse"
-              style="width: 50%; border: none;background: none;margin-left: -2px"
-              size="small"  @change="chooseOperation">
-            <el-option
-                v-for="item in eventList"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
-            </el-option>
-          </el-select>
-        </div>
-      </div>
+<!--      <div class="splitLine"></div>-->
+<!--      &lt;!&ndash; 第二个内容块 &ndash;&gt;-->
+<!--      <div class="content-block" style="margin-top: -26px">-->
+<!--        <h5>Event Analyse</h5>-->
+<!--        <div style="margin-top: -16px">-->
+<!--          <el-select-->
+<!--              v-model="selectedEventAnalyse"-->
+<!--              placeholder="event Analyse"-->
+<!--              style="width: 50%; border: none;background: none;margin-left: -2px"-->
+<!--              size="small"  @change="chooseOperation">-->
+<!--            <el-option-->
+<!--                v-for="item in eventList"-->
+<!--                :key="item.value"-->
+<!--                :label="item.label"-->
+<!--                :value="item.value">-->
+<!--            </el-option>-->
+<!--          </el-select>-->
+<!--        </div>-->
+<!--      </div>-->
     </div>
   </div>
 </template>
@@ -113,6 +113,8 @@ export default {
   },
   methods: {
     analyseEvent(){
+      this.selectedEventAnalyse = "event pairs"
+
       let startNum, endNum
       if(this.selectedUnit==="sec"){
         startNum=this.startNum/60

@@ -93,13 +93,13 @@ export default {
       displayParam:"",
       images: [
         { url: '../../../static/table.png', vis: "table", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/barChart.png', vis: "barChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/pieChart.png', vis: "pieChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/sunBurst.png', vis: "sunBurst", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/timeLine.png', vis: "timeLine", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/Sankey.svg', vis: "Sankey", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/lineChart.png', vis: "lineChart", style:"width: 30px; height: 30px;margin: 0 5px;" },
-        { url: '../../../static/Heatmap.png', vis: "Heatmap", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/barChart.png', vis: "bar chart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/pieChart.png', vis: "pie chart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/sunBurst.png', vis: "sunburst", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/timeLine.png', vis: "timeline", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/sankey.svg', vis: "sankey", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/lineChart.png', vis: "line chart", style:"width: 30px; height: 30px;margin: 0 5px;" },
+        { url: '../../../static/heatmap.png', vis: "heatmap", style:"width: 30px; height: 30px;margin: 0 5px;" },
         { url: '../../../static/scatter.png', vis: "scatter", style:"width: 25px; height: 25px;margin: 2px 5px;" }
       ],
       checkboxOptions:{},
@@ -172,7 +172,7 @@ export default {
     isSelectVisualType() {
       if (this.currentNode) {
         if(((this.selectedOperator==="group_by")||(this.selectedOperator==="flatten")||(this.selectedOperator==="pattern"))
-            &&(["barChart", "pieChart", "sunBurst"].includes(store.state.visualType))){
+            &&(["bar chart", "pie chart", "sunburst"].includes(store.state.visualType))){
           this.showOperator(this.currentNode,"count");
         }
         else{
@@ -260,7 +260,7 @@ export default {
             const eventData = value["data"][length-1]
             const curNode = this.graph.node(nodeId);
             // let text = curNode.label
-            let text = "eventSet"
+            let text = "Intermedia"
             const positionX=curNode.x;
             let positionY
             let outerRect
@@ -337,6 +337,7 @@ export default {
                   textElem.remove()
                   d3.select(".outerRect").remove()
                   const indexToRemove = newVal[nodeId]["expression"].indexOf(expression);
+
                   if (indexToRemove !== -1) {
                     store.state.interactionData[nodeId]["data"].splice(indexToRemove, 1);
                     store.state.interactionData[nodeId]["expression"].splice(indexToRemove, 1);
@@ -432,7 +433,7 @@ export default {
       this.updateNodeWithSquare(this.currentNode, store.state.sheetData[0]);
       store.commit('setSelectedOperator',"view type")
       this.showOperator(this.currentNode,"view type");
-      this.AddViewType(this.currentNode, "timeLine");
+      this.AddViewType(this.currentNode, "timeline");
       this.handleNodeClick(this.currentNode)
     },
 
@@ -455,7 +456,7 @@ export default {
       this.graph.setGraph({ rankdir: 'TB', edgesep: 5, ranksep: ranksep,  nodesep: 40, });
       // 设置 SVG 和渲染器
       const offsetX = 0.05*containerWidth; // 水平偏移量
-      const offsetY = 0.26*containerHeight; // 垂直偏移量
+      const offsetY = 0.24*containerHeight; // 垂直偏移量
       const svg = d3.select(".workflowArea").append("svg").attr('width', containerWidth).attr('height', containerHeight)
           .attr("class",'svgArea')
 
@@ -604,7 +605,7 @@ export default {
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       const offsetX = 0.05*containerWidth;
-      const offsetY = 0.24*containerHeight;
+      const offsetY = 0.22*containerHeight;
       const height = 0.06*containerHeight
       // 根据需要计算弧线的路径，这里简化为一个弧线
       const sourcePosition = getNodePosition(sourceNode);
@@ -706,11 +707,11 @@ export default {
                 const diff = groupNum - flattenNum
                 // 检查是否以count/unique_count结束
                 if (diff === 1){
-                  this.popupVisualization.push("barChart", "pieChart")
+                  this.popupVisualization.push("bar chart", "pie chart")
                   this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
                 }
                 else if (diff > 1){
-                  this.popupVisualization.push("sunBurst")
+                  this.popupVisualization.push("sunburst")
                   this.popupVisImg = this.images.filter(img => this.popupVisualization.includes(img.vis));
                 }
               }
@@ -948,9 +949,11 @@ export default {
 
           // 显示从起点到当前节点的路径信息
           let pathToNode = this.findPath('node0', newNodeId);
+
           const nodes = pathToNode.nodes
           const edges = pathToNode.edges
           const completePath = this.createCompletePaths(nodes, edges)
+
           const operationsArray = completePath
               .filter(item => item.operator) // 筛选出含有 'operator' 键的对象
               .map(item => item.operator); // 提取这些对象的 'operator' 键的值
@@ -959,18 +962,18 @@ export default {
           // 计算group_by和flatten的数量差
           const diff = groupNum - flattenNum
           if (diff === 1){
-            if(store.state.visualType==="pieChart"){
-              store.commit('setSelectedViewType',"pieChart")
-              this.AddViewType(this.currentNode, "pieChart");
+            if(store.state.visualType==="pie chart"){
+              store.commit('setSelectedViewType',"pie chart")
+              this.AddViewType(this.currentNode, "pie chart");
             }
            else{
-              store.commit('setSelectedViewType',"barChart")
-              this.AddViewType(this.currentNode, "barChart");
+              store.commit('setSelectedViewType',"bar chart")
+              this.AddViewType(this.currentNode, "bar chart");
             }
           }
           else if (diff > 1){
-            store.commit('setSelectedViewType',"sunBurst")
-            this.AddViewType(this.currentNode, "sunBurst");
+            store.commit('setSelectedViewType',"sunburst")
+            this.AddViewType(this.currentNode, "sunburst");
           }
         }
         // else if(operation==="group by"){
@@ -1059,7 +1062,7 @@ export default {
             .attr('height', rectHeight)
             .style('fill', 'transparent');
         // 添加有限长度的文字
-        const maxTextLength = 8; // 最大文本长度
+        const maxTextLength = 12; // 最大文本长度
         let displayText = text.length > maxTextLength ? text.substring(0, maxTextLength) + '...' : text;
         let CircleText = text.length > 1 ? text.substring(0, maxTextLength) : text;
         // 添加文字
@@ -1102,7 +1105,7 @@ export default {
       yPosition = -rectHeight/2;
       const newSquare = nodeElem.append('g').attr('class','view_type');
       // 添加有限长度的文字
-      const maxTextLength = 8; // 最大文本长度
+      const maxTextLength = 12; // 最大文本长度
       let displayText = text.length > maxTextLength ? text.substring(0, maxTextLength) + '...' : text;
       let CircleText = text.length > 1 ? text.substring(0, maxTextLength): text;
       // 添加文字

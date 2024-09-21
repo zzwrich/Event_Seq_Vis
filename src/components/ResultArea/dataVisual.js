@@ -69,10 +69,10 @@ export default {
         }
         if(["count", "unique_count"].includes(operation)){
             if(store.state.curExpression.includes("view_type")){
-                if(visualType==="pieChart"){
+                if(visualType==="pie chart"){
                     this.createPieChart(containerId, data);
                 }
-                else if(visualType==="sunBurst"){
+                else if(visualType==="sunburst"){
                     this.createSunBurst(containerId, data);
                 }
                 else{
@@ -112,19 +112,19 @@ export default {
             }
 
             if(store.state.curExpression.includes("view_type")){
-                if(visualType==null || visualType==="timeLine"){
+                if(visualType==null || visualType==="timeline"){
                     this.createTimeLine(containerId, data, seqView);
                 }
-                else if(visualType==="Sankey"){
+                else if(visualType==="sankey"){
                     this.createAggTimeLine(containerId, data, seqView);
                 }
                 else if(visualType==="hierarchy"){
                     this.createHierarchy(containerId, convertToTreeData(data,seqView));
                 }
-                else if(visualType==="Heatmap"){
+                else if(visualType==="heatmap"){
                     this.createHeatmap(containerId, data, seqView);
                 }
-                else if(visualType==="lineChart"){
+                else if(visualType==="line chart"){
                     this.createLineChart(containerId, data, seqView);
                 }
                 else{
@@ -139,7 +139,7 @@ export default {
                 store.commit('setCurColorMap', patternMatch[1])
             }
             if(store.state.curExpression.includes("view_type")){
-                if(visualType==="timeLine"){
+                if(visualType==="timeline"){
                     this.createPatternLine(containerId, data);
                 }
             }
@@ -441,7 +441,7 @@ export default {
         // 观察 svg 容器大小变化
         resizeObserver.observe(container);
         function resizeLine() {
-            const threshold = 20; // 阈值
+            const threshold = 5; // 阈值
             // 获取新的容器尺寸
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
@@ -538,7 +538,9 @@ export default {
                             return chartHeight - yScale(filledData[key][d])});
                     chartGroup.selectAll('.mouseoverBarChart')
                         .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                        .attr('y', d => yScale(mouseoverData[key][d]))
+                        .attr('y', (d) => {
+                            return yScale(mouseoverData[key][d]);
+                        })
                         .attr('width', xScale.bandwidth() / outerKeys.length)
                         .attr('height', d => chartHeight - yScale(mouseoverData[key][d]));
                     chartGroup.selectAll('.eventBarChart')
@@ -790,6 +792,7 @@ export default {
                     .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
                     .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
             }
+            onResize()
         }, { deep: true });
 
         store.watch(() => store.state.globalMouseover, (newValue) => {
@@ -833,7 +836,7 @@ export default {
                                         tooltip.html(tooltipContent)
                                             .style('left', (event.pageX)-containerRect.left + 'px')
                                             .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                                        onResize()
+                                        // onResize()
                                     })
                                     .on('mouseout', function() {
                                         d3.select(this).attr('opacity', 1);
@@ -861,6 +864,7 @@ export default {
                 chartGroup.selectAll('.x-axis text')
                     .classed('mouseover-legend', false)
             }
+            onResize()
         }, { deep: true });
 
         store.watch(() => store.state.brushedEvent, (newValue) => {
@@ -954,7 +958,7 @@ export default {
             const codeContext = container.getAttribute("codeContext");
             // 去除 .count()
             let stringWithoutCount = codeContext.replace(".count()", "");
-            let code = stringWithoutCount.replace(".view_type(\"barChart\")", ".view_type(\"timeLine\")")
+            let code = stringWithoutCount.replace(".view_type(\"bar chart\")", ".view_type(\"timeline\")")
             if(code.includes("pattern")){
                 axios.post('http://127.0.0.1:5000/executeCode', { code: code, support: store.state.curMinSupport })
                     .then(response => {
@@ -1877,7 +1881,10 @@ export default {
             chartGroup.append('g')
                 .attr('transform', `translate(0, ${chartHeight})`)
                 .attr('class', 'x-axis')
-                .call(xAxis);
+                .call(xAxis)
+                .selectAll('text')
+                .remove();
+
             // 添加y轴
             chartGroup.append('g')
                 .attr('class', 'y-axis')
@@ -2722,7 +2729,7 @@ export default {
         defaultAggVisOption.selected = true; // 默认选中这个选项
         const aggVisOption1 = document.createElement('option');
         aggVisOption1.value = '旭日图';
-        aggVisOption1.innerText = 'sunBurst';
+        aggVisOption1.innerText = 'Sunburst';
         const aggVisOption2 = document.createElement('option');
         aggVisOption2.value = '气泡树图';
         aggVisOption2.innerText = 'Circular';
@@ -2843,7 +2850,7 @@ export default {
 
         store.watch(() => store.state.globalColorMap, () => {
             const myDiv= document.getElementById(containerId)
-            if(myDiv.getAttribute("codeContext").includes(".view_type(\"timeLine\")")){
+            if(myDiv.getAttribute("codeContext").includes(".view_type(\"timeline\")")){
                 // 更改全局变量的值
                 store.commit('setTimeLineData',{ key: containerId, value: {data: data, seqView:store.state.curColorMap} })
                 // 获取当前选中的值
@@ -2962,7 +2969,11 @@ export default {
                             .attr('y', legendY)
                             .attr('width', rectSize)
                             .attr('height', rectSize)
-                            .style('fill', colorMap[item]);
+                            .style('fill', colorMap[item])
+                            .style('stroke', colorMap[item]) // 根据操作类型选择颜色
+                            .style('stroke-width', '2px')   // 设置线条粗细为2像素
+                            .attr('class', 'sankeyLegendRect')
+                            .attr('id', item)
                     });
                 }
             }
@@ -3029,6 +3040,11 @@ export default {
                                 const textContent = d3.select(this).text();  // 正确获取当前元素的文本内容
                                 return !keys.includes(parseAction(textContent));
                             });
+                        svg.selectAll(".sankeyLegendRect")
+                            .classed('unhighlighted-text', function(d) {
+                                const textContent = d3.select(this).attr("id");  // 正确获取当前元素的文本内容
+                                return !keys.includes(parseAction(textContent));
+                            });
                     }
                 }
                 else{
@@ -3041,6 +3057,8 @@ export default {
                     }
                     // 选择所有具有'sankeyLegendText'类的元素
                     svg.selectAll('.sankeyLegendText')
+                        .classed('unhighlighted-text', false);
+                    svg.selectAll('.sankeyLegendRect')
                         .classed('unhighlighted-text', false);
                 }
             }, { deep: true });
@@ -3095,11 +3113,20 @@ export default {
                                     legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
                                 }
                             });
+                        svg.selectAll(".sankeyLegendRect")
+                            .each(function() {
+                                const legendText = d3.select(this);
+                                const textContent = legendText.attr("id"); // 获取当前元素的文本内容
+                                if(keys.includes(parseAction(textContent))){
+                                    legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
+                                }
+                            });
                     }
                 }
                 else{
                     svg.selectAll(".mouseover-circle").classed("mouseover-circle", false);
                     svg.selectAll('.sankeyLegendText').classed("mouseover-legend", false);
+                    svg.selectAll('.sankeyLegendRext').classed("mouseover-legend", false);
                 }
             }, { deep: true });
 
@@ -3435,7 +3462,7 @@ export default {
                     const myDiv =  document.getElementById(curContainerId)
                     let codeContext =myDiv.getAttribute("codeContext");
                     if(codeContext){
-                        if(codeContext.includes("timeLine")&&!codeContext.includes("pattern")){
+                        if(codeContext.includes("timeline")&&!codeContext.includes("pattern")){
                             // 筛选出键在matchingSequences中的数据
                             const data = timeLineDict[curContainerId]["data"]
                             matchingSequences = findSequencesContainingSubsequence(data, selectedData,true);
@@ -3446,6 +3473,7 @@ export default {
             }
 
             async function filterByBrush(selectedData){
+                console.log("选择",selectedData)
                 let matchingSequences={}
                 const timeLineDict = store.state.timeLineData
                 const parentDiv = document.getElementsByClassName('grid-item block4')[0];
@@ -3457,7 +3485,7 @@ export default {
                     const curContainerId = allContainerId[i]
                     const myDiv =  document.getElementById(curContainerId)
                     let codeContext =myDiv.getAttribute("codeContext");
-                    if(codeContext.includes("timeLine")&&!codeContext.includes("pattern")){
+                    if(codeContext.includes("timeline")&&!codeContext.includes("pattern")){
                         // 筛选出键在matchingSequences中的数据
                         const data = timeLineDict[curContainerId]["data"]
                         matchingSequences = findSequencesContainingSubsequence(data, selectedData,true);
@@ -3973,7 +4001,11 @@ export default {
                             .attr('y', legendY)
                             .attr('width', rectSize)
                             .attr('height', rectSize)
-                            .style('fill', colorMap[item]);
+                            .style('fill', colorMap[item])
+                            .style('stroke', colorMap[item]) // 根据操作类型选择颜色
+                            .style('stroke-width', '2px')   // 设置线条粗细为2像素
+                            .attr('class', 'sankeyLegendRect')
+                            .attr('id', item);
                     });
                 })
                 .catch(error => {
@@ -4104,6 +4136,12 @@ export default {
                             const textContent = d3.select(this).text();  // 正确获取当前元素的文本内容
                             return !keys.includes(parseAction(textContent));
                         });
+
+                    svg.selectAll(".sankeyLegendRect")
+                        .classed('unhighlighted-text', function() {
+                            const textContent = d3.select(this).attr("id");  // 正确获取当前元素的文本内容
+                            return !keys.includes(parseAction(textContent));
+                        });
                 }
                 else{
                     const circles = svg.selectAll('.sunburst-node')
@@ -4111,6 +4149,9 @@ export default {
                     sankeyLinks.classed('highlight-path', false);
 
                     svg.selectAll('.sankeyLegendText')
+                        .classed('unhighlighted-text', false);
+
+                    svg.selectAll('.sankeyLegendRect')
                         .classed('unhighlighted-text', false);
                 }
             }
