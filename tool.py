@@ -192,7 +192,6 @@ def process_data(data):
 
 
 def process_agg_sankey_data(data):
-    # print("data",data)
     nodes = []
     links = []
     list_range = get_max_list_length(data)
@@ -528,6 +527,7 @@ def find_frequent_pattern(sequences, support):
     # 解析结果并映射回原始项
     pattern_list = []
     for result in lines:
+        print(result)
         # 移除字符串末尾的支持度信息（例如 "#SUP: 3"）
         pattern_str = result.split(" #")[0]
         # 分割模式字符串，移除分隔符'-1'后转换为整数ID列表

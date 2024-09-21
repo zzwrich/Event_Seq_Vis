@@ -119,7 +119,6 @@ class ItemSet:
                 compare_function = operator_functions[operator]
                 result = [i for i in self.processed_data if compare_function(self.data[attribute][i], rule)]
         elif isinstance(rule, list):
-            print(type(self.data[attribute][0]))
             if self.data.get(attribute) and (isinstance(self.data[attribute][0], str) or "id" in attribute.lower()):
                 result = [i for i in self.processed_data if self.data[attribute][i] in rule]
             elif self.data[attribute] and isinstance(self.data[attribute][0], (int, float)):
@@ -197,7 +196,6 @@ class ItemSet:
 
     # pattern函数用在多次分组之后
     def pattern(self, attribute, support="50%"):
-        print("support",support)
         if attribute not in self.data:
             return self
         new_instance = self.copy()

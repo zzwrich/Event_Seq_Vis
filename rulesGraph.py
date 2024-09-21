@@ -44,22 +44,22 @@ class VisualGraph:
         # 检查是否以count/unique_count结束
         if operations[-1] == "count" or operations[-1] == "unique_count":
             if diff == 1:
-                return ["barChart", "pieChart"]
+                return ["bar chart", "pie chart"]
             elif diff > 1:
-                return ["sunBurst"]
+                return ["sunburst"]
         # 检查是否以unique_attr结束
         if operations[-1] == "unique_attr":
             return ["table"]
         # 检查是否以filter结束
         if operations[-1] == "filter":
-            return ["table"]
+            return ["table", "scatter"]
         if operations[-1] == "pattern":
-            return ['timeLine']
+            return ['timeline']
         else:
             if groupNum > 1:
-                return ['timeLine', 'Sankey']
+                return ['timeline', 'sankey', 'line chart', 'heatmap']
             if groupNum == 1:
-                return ['timeLine', 'Sankey']
+                return ['timeline', 'sankey', 'line chart', 'heatmap']
         return None
 
     def find_paths_to_visualization(self, target_visualization):
@@ -109,9 +109,9 @@ op_graph.add_operation(["unique_count"], [])
 vis_graph.add_operation([], ["table"])
 vis_graph.add_operation(["filter"], ["table"])
 vis_graph.add_operation(["unique_attr"], ["table"])
-vis_graph.add_operation(["count"], ["barChart", "pieChart"])
-vis_graph.add_operation(["unique_count"], ["barChart", "pieChart"])
-vis_graph.add_operation(["filter", "unique_count"], ["barChart", "pieChart"])
+vis_graph.add_operation(["count"], ["bar chart", "pie chart"])
+vis_graph.add_operation(["unique_count"], ["bar chart", "pie chart"])
+vis_graph.add_operation(["filter", "unique_count"], ["bar chart", "pie chart"])
 vis_graph.add_operation(["filter", "unique_attr"], ["table"])
 
 # 查找缺少的操作
