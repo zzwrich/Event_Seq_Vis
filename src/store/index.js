@@ -11,28 +11,6 @@ function generateGrayscaleColors(count) {
 }
 
 const combinedColors = [...d3.schemeTableau10,...d3.schemePastel1, ...d3.schemePastel2, ...d3.schemeSet3, ...d3.schemeAccent, ...d3.schemeCategory10];
-// const combinedColors = [
-//     "rgb(67, 121, 131)",
-//     "rgb(71, 141, 118)",
-//     "rgb(82, 165, 92)",
-//     "rgb(212, 185, 106)",
-//     "rgb(212, 171, 106)",
-//     "rgb(138, 189, 95)",
-//     "rgb(212, 155, 106)",
-//     "rgb(171, 200, 100)",
-//     "rgb(212, 126, 106)",
-//     "rgb(184, 92, 128)",
-//     "rgb(204, 210, 105)",
-//     "rgb(212, 205, 106)",
-//     "rgb(212, 195, 106)",
-//     "rgb(116, 75, 142)",
-//     "rgb(101, 80, 145)",
-//     "rgb(84, 89, 148)",
-//     "rgb(73, 108, 137)",
-//     "rgb(71, 113, 135)",
-//     "rgb(135, 70, 139)",
-//     "rgb(212, 114, 106)",
-// ];
 
 const store = createStore({
     state() {
@@ -99,7 +77,13 @@ const store = createStore({
             //是否修改了min support
             isClickSupport: false,
             // 当前的min support
-            curMinSupport: ""
+            curMinSupport: "",
+            // 为了一加载数据就自动创建表格因此使用这个变量监听一下
+            isFirstLoad: false,
+            // 判断点的是不是临时数据
+            isInterMedia: false,
+            //框选模式，更新时间轴
+            selectFromPattern: []
         };
     },
     mutations: {
@@ -304,6 +288,15 @@ const store = createStore({
         setCurMinSupport(state, option) {
             state.curMinSupport = option;
         },
+        setIsFirstLoad(state) {
+            state.isFirstLoad = !state.isFirstLoad;
+        },
+        setIsIntermedia(state, option) {
+            state.isInterMedia = option;
+        },
+        setSelectFromPattern(state, option) {
+            state.selectFromPattern = option;
+        },
     },
     actions: {
         saveResponseData({ commit }, data) {
@@ -461,6 +454,15 @@ const store = createStore({
         },
         saveCurMinSupport({ commit }, option) {
             commit('setCurMinSupport',option);
+        },
+        saveIsFirstLoad({ commit }) {
+            commit('setIsFirstLoad');
+        },
+        saveIsInterMedia({ commit }, option) {
+            commit('setIsIntermedia', option);
+        },
+        saveSelectFromPattern({ commit }, option) {
+            commit('setSelectFromPattern', option);
         },
     }
 });

@@ -275,14 +275,14 @@ export default {
             const outerX =positionX - width / 2 - padding;
 
             if (element1.empty()) {
-              positionY = curNode.y + curNode.height +22;
+              positionY = curNode.y + curNode.height +40;
               textId=text+"1"
               if(!element2.empty()){
                 outerY = element2.attr("y") - padding/2- curNode.height-5
                 createOuterRect.call(this, outerX, outerY);
               }
             } else {
-              positionY = curNode.y + curNode.height*2 +27;
+              positionY = curNode.y + curNode.height*2 +45;
               textId = text+"2"
               if(!element1.empty()){
                 outerY = positionY - padding/2- curNode.height-5
@@ -332,7 +332,7 @@ export default {
                 .style("stroke-width", 1.5)
                 .style("stroke-dasharray", ("3, 3"))
                 .on("click", () => {
-                  this.addNode(text,expression)
+                  this.addNode("Data",expression)
                   interactiveRect.remove()
                   textElem.remove()
                   d3.select(".outerRect").remove()
@@ -350,7 +350,7 @@ export default {
                 .attr('y', positionY+height / 2+3)
                 .attr('text-anchor', 'middle')
                 .attr('class',"textElem")
-                .text(textId)
+                .text(text)
                 .style("fill", "grey")
                 .style("font-size", "60%")
                 .style("font-weight", "bold")
@@ -456,7 +456,7 @@ export default {
       this.graph.setGraph({ rankdir: 'TB', edgesep: 5, ranksep: ranksep,  nodesep: 40, });
       // 设置 SVG 和渲染器
       const offsetX = 0.05*containerWidth; // 水平偏移量
-      const offsetY = 0.24*containerHeight; // 垂直偏移量
+      const offsetY = 0.285*containerHeight; // 垂直偏移量
       const svg = d3.select(".workflowArea").append("svg").attr('width', containerWidth).attr('height', containerHeight)
           .attr("class",'svgArea')
 
@@ -491,7 +491,7 @@ export default {
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       const rectHeight = 0.07*containerHeight
-      const rectWidth = 0.045*containerWidth
+      const rectWidth = 0.035*containerWidth
       this.nodes.push({ id: newNodeId, label: data});
       let nodeClass
       if(className){
@@ -589,8 +589,8 @@ export default {
             .attr('refX',6)  // 箭头坐标
             .attr('refY', 0)
             .attr('orient', 'auto')
-            .attr('markerWidth', "3%")  // 箭头大小
-            .attr('markerHeight', "3%")
+            .attr('markerWidth', "2%")  // 箭头大小
+            .attr('markerHeight', "2%")
             .attr('xoverflow', 'visible');
 
         marker.append('svg:path')
@@ -605,7 +605,7 @@ export default {
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       const offsetX = 0.05*containerWidth;
-      const offsetY = 0.22*containerHeight;
+      const offsetY = 0.28*containerHeight;
       const height = 0.06*containerHeight
       // 根据需要计算弧线的路径，这里简化为一个弧线
       const sourcePosition = getNodePosition(sourceNode);
@@ -616,7 +616,7 @@ export default {
       );
 
       // 调整控制点的偏移量，根据距离来确定弧度
-      const controlPointOffset = distance * 0.2;
+      const controlPointOffset = distance * 0.25;
 
       const curvePath = d3.path();
       curvePath.moveTo(sourcePosition.x+offsetX, sourcePosition.y+offsetY-height);
@@ -740,7 +740,7 @@ export default {
       const offsetX = 0.05*containerWidth; // 水平偏移量
 
       this.popupLeft = clickNode.x + offsetX+50;
-      this.popupTop = clickNode.y +10;
+      this.popupTop = clickNode.y +50;
 
       this.updateGraph()
       // 设置当前节点
@@ -849,7 +849,7 @@ export default {
           this.$store.dispatch('saveCurExpression',className);
           this.popupParam = []
           // 获取下一步可能的操作和可视化构型
-          axios.post('http://127.0.0.1:5000/next_opera_vis', { operation: []})
+          axios.post('http://127.0.0.1:5000:5000/next_opera_vis', { operation: []})
               .then(response => {
                 const operationList = response.data["operationList"]
                 const visualizationList = response.data["visualizationList"]
@@ -945,10 +945,24 @@ export default {
           const nextNodeId = `node${this.nextNodeId}`;
           store.commit('setSelectedOperator',"view type")
           this.addNode(" ");
+
+          console.log("next",nextNodeId)
           this.addEdge(newNodeId, "view type", nextNodeId);
 
           // 显示从起点到当前节点的路径信息
-          let pathToNode = this.findPath('node0', newNodeId);
+          let pathToNode
+          if(!store.state.isInterMedia){
+            pathToNode= this.findPath('node0', newNodeId);
+          }
+
+          else{
+            this.nodes.forEach(n => {
+              if(n.label==="Data"){
+                pathToNode= this.findPath(n.id, newNodeId);
+                return true
+              }
+            })
+          }
 
           const nodes = pathToNode.nodes
           const edges = pathToNode.edges
@@ -979,20 +993,26 @@ export default {
         // else if(operation==="group by"){
         //   const nextNodeId = `node${this.nextNodeId}`;
         //   store.commit('setSelectedOperator',"view type")
-        //   this.addNode(" ");
-        //   this.addEdge(newNodeId, "view type", nextNodeId);
-        //   if(store.state.visualType==="Sankey"){
-        //     this.AddViewType(this.currentNode, "Sankey");
-        //   }
-        //   else{
-        //     store.commit('setSelectedViewType',"timeLine")
-        //     this.AddViewType(this.currentNode, "timeLine");
-        //   }
+        //   // this.addNode(" ");
+        //   // this.addEdge(newNodeId, "view type", nextNodeId);
+        //   // if(store.state.visualType==="Sankey"){
+        //   //   this.AddViewType(this.currentNode, "Sankey");
+        //   // }
+        //   // else{
+        //   //   store.commit('setSelectedViewType',"timeLine")
+        //   //   this.AddViewType(this.currentNode, "timeLine");
+        //   // }
         // }
       }
     },
 
     highlightNode(node) {
+      if(node.label==="Data"){
+        store.commit('setIsIntermedia',true)
+      }
+      else if(node.id==="node0"){
+        store.commit('setIsIntermedia',false)
+      }
       this.nodes.forEach(n => {
         const oldNode = this.graph.node(n.id);
         if(n.id!=="node0"){

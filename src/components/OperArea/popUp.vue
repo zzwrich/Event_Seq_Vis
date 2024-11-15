@@ -1,6 +1,6 @@
 <template>
   <div class="popup" v-if="visible" :style="{ left: left + 'px', top: top + 'px'}">
-    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
+    <Close style="width: 6%;height: 6%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closePopup" class="myIcon"></Close>
     <!-- 第一个内容块 -->
     <div style="height: 98%;">
       <div class="content-block">
@@ -21,7 +21,7 @@
     </div>
   </div>
   <div v-if="newPopupVisible" class="newPopup" :style="{ left: left + 'px', top: top + 'px'}">
-    <Close style="width: 8%;height: 8%;position: absolute;left:90%;cursor:pointer;color: #606266;top: 1.5%" @click="closeNewPopup" class="myIcon"></Close>
+    <Close style="width: 6%;height: 6%;position: absolute;left:94%;cursor:pointer;color: #606266;top: 1.5%" @click="closeNewPopup" class="myIcon"></Close>
     <div style="margin-top: 10px;" v-if="displayMode === 'filter'">
       <el-date-picker
           v-model="dateTimeRange"

@@ -145,7 +145,7 @@ export function generateColorMap(data,seqView) {
     const uniqueAction = Array.from(uniqueActionTypes).sort();
     // 为每种操作类型分配颜色
     const colorMap = {};
-    const combinedColorScheme = [...d3.schemeTableau10, ...d3.schemeAccent, ...d3.schemePaired, ...d3.schemeCategory10];
+    const combinedColorScheme = [...d3.schemePaired,  ...d3.schemeCategory10, ...d3.schemeAccent, ...d3.schemeTableau10, ];
     const colorScale = d3.scaleOrdinal(combinedColorScheme).domain(uniqueAction); // 设置颜色映射的域为所有唯一事件
     uniqueAction.forEach((event) => {
         colorMap[event] = colorScale(event); // 直接使用事件名称作为输入
@@ -161,7 +161,7 @@ export function generateUserColorMap(data) {
     });
     // 为每种操作类型分配颜色
     const colorMap = {};
-    const colorScale = d3.scaleOrdinal(d3.schemeSet3); // 使用内置的颜色方案
+    const colorScale = d3.scaleOrdinal(d3.schemePaired); // 使用内置的颜色方案
     uniqueActionTypes.forEach((actionType, index) => {
         colorMap[actionType] = colorScale(index);
     });
@@ -252,9 +252,9 @@ export function estimateSankeySize(nodes, nodeSpacing) {
     let maxDepth = Math.max(...nodes
         .filter(node => node.name !== "unknown")
         .map(node => {
-        const numbers = node.name.split('@').map(str => parseInt(str, 10));
-        return numbers[1];
-    }));
+            const numbers = node.name.split('@').map(str => parseInt(str, 10));
+            return numbers[1];
+        }));
 
     if(nodes.some(node => node.name === "unknown")){
         if(maxDepth===0){
@@ -303,7 +303,11 @@ export function changeGlobalHighlight(d, containerId){
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
     const allChildDivs = {};
     // 直接选择所有类名为 'chart-container' 的 div 元素
-    const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    // const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    const chartContainers = Array.from(parentDiv.querySelectorAll('div.chart-container'))
+        .filter(div => div.id !== 'chart-container-default');
+
+    console.log("奇怪",chartContainers)
     // 遍历找到的元素
     chartContainers.forEach(div => {
         // 使用元素的 id 作为键，'codeContext' 属性的值作为值
@@ -384,7 +388,9 @@ export function changeGlobalMouseover(d, containerId){
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
     const allChildDivs = {};
     // 直接选择所有类名为 'chart-container' 的 div 元素
-    const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    // const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    const chartContainers = Array.from(parentDiv.querySelectorAll('div.chart-container'))
+        .filter(div => div.id !== 'chart-container-default');
     // 遍历找到的元素
     chartContainers.forEach(div => {
         // 使用元素的 id 作为键，'codeContext' 属性的值作为值
@@ -457,7 +463,9 @@ export function changeEventBrush(selectedData, containerId){
     const parentDiv = document.getElementsByClassName('grid-item block4')[0];
     const allChildDivs = {};
     // 直接选择所有类名为 'chart-container' 的 div 元素
-    const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    // const chartContainers = parentDiv.querySelectorAll('div.chart-container');
+    const chartContainers = Array.from(parentDiv.querySelectorAll('div.chart-container'))
+        .filter(div => div.id !== 'chart-container-default');
     // 遍历找到的元素
     chartContainers.forEach(div => {
         // 使用元素的 id 作为键，'codeContext' 属性的值作为值
@@ -634,7 +642,11 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
     // 循环遍历 sankeyNodesData
     sankeyNodesData.forEach((nodeData, index) => {
         const number = Object.keys(nodeData.data).length
-        const radius = Math.max((nodeData.x1 - nodeData.x0),(nodeData.y1 - nodeData.y0))/r
+        let radius = Math.max((nodeData.x1 - nodeData.x0),(nodeData.y1 - nodeData.y0))/r
+
+        if(hasUsername){
+            radius = Math.min(12,radius)
+        }
 
         if(nodeData.name!=="unknown"){
             let arr
@@ -697,13 +709,36 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
             }
 
             else if(alignment==="绝对时间"){
+                // 获取时、分、秒部分，忽略年月日
+                function getSeconds(timeString) {
+                    // 使用正则表达式提取时间部分 (00:09:41)
+                    const timeMatch = timeString.match(/\d{2}:\d{2}:\d{2}/);
+                    if (timeMatch) {
+                        const [hours, minutes, seconds] = timeMatch[0].split(':').map(Number);
+                        // 计算总秒数
+                        return hours * 3600 + minutes * 60 + seconds;
+                    }
+                    return null; // 如果格式不正确，返回null
+                }
+
                 const times = sankeyNodesData.map(d => d.time.split("@")[0]);
-                const dates = times.map(time => new Date(time));
+                // const dates = times.map(time => new Date(time));
+
                 // 找出最早和最晚的时间点
-                const minTime = new Date(Math.min.apply(null,dates));
-                const maxTime = new Date(Math.max.apply(null,dates));
+                // const minTime = new Date(Math.min.apply(null,dates));
+                // const maxTime = new Date(Math.max.apply(null,dates));
+                // 用于存放每个时间字符串的总秒数
+                const totalSeconds = times.map(timeString => {
+                    return getSeconds(timeString);  // 这里需要返回值
+                });
+
+                const maxTime = Math.max(...totalSeconds);
+                const minTime = Math.min(...totalSeconds);
+
                 const timeRange = maxTime - minTime;
-                const timeDiff = new Date(nodeData.time)- minTime;
+                // const timeDiff = new Date(nodeData.time)- minTime;
+                const timeDiff = getSeconds(nodeData.time)- minTime;
+
                 const newx0 = (timeDiff / timeRange)*(maxx0-minx0)+minx0
                 const newx1 = (timeDiff / timeRange)*(maxx1-minx1)+minx1
                 centerX = (newx0 + newx1) / 2
@@ -766,7 +801,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         // });
                         .innerRadius(0)
                         .outerRadius(radius)
-                        // .outerRadius(d => d.y1 *4.2)
+                    // .outerRadius(d => d.y1 *4.2)
                 }
                 else{
                     arc = d3.arc()
@@ -853,8 +888,8 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                             sankeyTooltip.html(tooltipContent)
                                 .style('left', (e.pageX) - containerRect.left + 'px')
                                 .style('top', (e.pageY) - containerRect.top + 'px');
-                            }
-                        })
+                        }
+                    })
                         .on('mouseout', function () {
                             sankeyTooltip.transition()
                                 .duration(500)
@@ -903,7 +938,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                                 }
                             }
                             else{
-                             return className
+                                return className
                             }})
                         .attr("fill", d => colorMap[parseAction(d.data.name.split("@")[0])])
                         .attr("fill-opacity", 1)
@@ -1007,69 +1042,85 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                     sankeyNodes
                         .on('mouseover', function (e, d) {
                             if(!isAgg){
-                            const str = this.id;
-                            const parts = str.split("-");
-                            let circleId = parts[parts.length - 1]; // 获取最后一个部分
-                            sankeyTooltip.transition()
-                                .duration(200)
-                                .style("opacity", .9)
-                            let tooltipText
-                            //     时间轴部分
-                            if(hasUsername){
-                                let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                // 创建要显示的信息字符串
-                                tooltipText = "<strong>" + d.data.name.split('@')[0] + "</strong><br/>";
-                                Object.keys(data[username]).forEach(key => {
-                                    if (Array.isArray(data[circlename][key]) && data[circlename][key][circleId] !== undefined) {
-                                        let cellData = data[circlename][key][circleId]
-                                        if (typeof cellData === 'string' && cellData.includes('GMT')) {
-                                            // 如果数据是日期时间字符串类型，进行格式化
-                                            cellData = formatDateTime(cellData);
+                                const str = this.id;
+                                const parts = str.split("-");
+                                let circleId = parts[parts.length - 1]; // 获取最后一个部分
+                                sankeyTooltip.transition()
+                                    .duration(200)
+                                    .style("opacity", .9)
+                                let tooltipText
+                                //     时间轴部分
+                                if(hasUsername){
+                                    let circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
+                                    // 创建要显示的信息字符串
+                                    tooltipText = "<strong>" + d.data.name.split('@')[0] + "</strong><br/>";
+                                    Object.keys(data[username]).forEach(key => {
+                                        if (Array.isArray(data[circlename][key]) && data[circlename][key][circleId] !== undefined) {
+                                            let cellData = data[circlename][key][circleId]
+                                            if (typeof cellData === 'string' && cellData.includes('GMT')) {
+                                                // 如果数据是日期时间字符串类型，进行格式化
+                                                cellData = formatDateTime(cellData);
+                                            }
+                                            tooltipText += key + ": " + cellData + "<br/>";
                                         }
-                                        tooltipText += key + ": " + cellData + "<br/>";
-                                    }
-                                });
-                            }
+                                    });
+                                }
 
+                                else{
+                                    // 桑基图部分
+                                    if(d.data.name===nodeData.name){
+                                        tooltipText = `<p>${d.data.name.split("@")[0]} <strong>${nodeData.value}</strong></p>`
+                                    }
+                                    else{
+                                        if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
+                                            d.data.name = formatDateTime(d.data.name.split("@")[0]);
+                                        }
+                                        tooltipText = `<p>${d.data.name.split("@")[0]}</p>`
+                                    }
+                                }
+                                sankeyTooltip.html(tooltipText) // 设置提示框的内容
+                                    .style("left", (e.pageX)- containerRect.left + container.scrollLeft + "px")
+                                    .style("top", (e.pageY - containerRect.top + container.scrollTop+10) + "px")
+                                    .style("width", "auto")
+                                    .style("white-space", "nowrap");
+                            }
                             else{
-                                // 桑基图部分
-                                if(d.data.name===nodeData.name){
-                                    tooltipText = `<p>${d.data.name.split("@")[0]} <strong>${nodeData.value}</strong></p>`
+                                sankeyTooltip.transition()
+                                    .duration(200)
+                                    .style('opacity', 0.8);
+
+                                let tooltipContent
+                                if(d.data.value){
+                                    tooltipContent=`${d.data.name.split("@")[0]}: <strong>${d.data.value}</strong>`
                                 }
                                 else{
-                                    if (typeof d.data.name === 'string' && d.data.name.includes('GMT')) {
-                                        d.data.name = formatDateTime(d.data.name.split("@")[0]);
-                                    }
-                                    tooltipText = `<p>${d.data.name.split("@")[0]}</p>`
+                                    tooltipContent=`${d.data.name.split("@")[0]}`
                                 }
+                                sankeyTooltip.html(tooltipContent)
+                                    .style('left', (e.pageX)-containerRect.left + 'px')
+                                    .style('top', (e.pageY)-containerRect.top + 'px');
                             }
-                            sankeyTooltip.html(tooltipText) // 设置提示框的内容
-                                .style("left", (e.pageX)- containerRect.left + container.scrollLeft + "px")
-                                .style("top", (e.pageY - containerRect.top + container.scrollTop+10) + "px")
-                                .style("width", "auto")
-                                .style("white-space", "nowrap");
-                        }
-                            else{
-                            sankeyTooltip.transition()
-                                .duration(200)
-                                .style('opacity', 0.8);
-
-                            let tooltipContent
-                            if(d.data.value){
-                                tooltipContent=`${d.data.name.split("@")[0]}: <strong>${d.data.value}</strong>`
-                            }
-                            else{
-                                tooltipContent=`${d.data.name.split("@")[0]}`
-                            }
-                            sankeyTooltip.html(tooltipContent)
-                                .style('left', (e.pageX)-containerRect.left + 'px')
-                                .style('top', (e.pageY)-containerRect.top + 'px');
-                        }
                         })
                         .on('mouseout', function () {
                             sankeyTooltip.transition()
                                 .duration(500)
                                 .style("opacity", 0);
+                        })
+                        .on('click', function () {
+                            const myDiv =  document.getElementById(containerId)
+                            let codeContext =myDiv.getAttribute("codeContext");
+                            // console.log("喜喜",codeContext)
+                            // const regex1 = /group_by\("([^"]+)"\)/g; // 使用全局标志`g`进行全文搜索
+                            // const matches1 = codeContext.matchAll(regex1);
+                            // const parameters = [];
+                            // for (const match of matches1) {
+                            //     parameters.push(match[1]);
+                            // }
+                            // const foundUserKey = parameters[0]
+                            // event.stopPropagation(); // 阻止事件传播
+                            // const myObject = {};
+                            // myObject[foundUserKey] = selectedUsername
+                            // changeGlobalHighlight(myObject, containerId)
                         });
 
                     if(!isAgg){
@@ -1081,7 +1132,7 @@ export function createNodes(isAgg,containerId,container,containerRect,aggSankeyC
                         sankeyNodes
                             .attr('display', d => {
                                 return d.depth ? null : 'none'}) // 隐藏根节点
-                            // .style('stroke', '#fff') // 设置分隔线颜色
+                        // .style('stroke', '#fff') // 设置分隔线颜色
                     }
                 }
             }

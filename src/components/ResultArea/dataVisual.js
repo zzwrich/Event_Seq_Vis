@@ -19,7 +19,6 @@ import {
     findSequencesContainingSubsequence,
     flatten,
     flattenPattern,
-    formatDateTime,
     generateUserColorMap,
     getKeysByValue,
     getRelatedLinks, getRelatedLinksForNode,
@@ -32,7 +31,7 @@ import axios from "axios";
 
 let usernameTextWidth = {}
 // 创建颜色比例尺
-const combinedColorScheme = [...d3.schemePastel1, ...d3.schemeTableau10, ...d3.schemeAccent, ...d3.schemePaired, ...d3.schemeCategory10];
+const combinedColorScheme = [...d3.schemeTableau10, ...d3.schemeAccent, ...d3.schemePastel1, ...d3.schemeAccent, ...d3.schemePaired, ...d3.schemeCategory10];
 const sunburstColor = d3.scaleOrdinal(combinedColorScheme);
 
 // 数值数据的颜色插值
@@ -54,8 +53,13 @@ export default {
         }
 
         if (["filter", "original", "difference_set", "intersection_set", 'filterTimeRange'].includes(operation)) {
-            // this.createTable(containerId, data);
-            if(visualType==="table"){
+            if(!store.state.isFirstLoad){
+                console.log("好困")
+                this.createTable(containerId, data);
+                store.commit('setIsFirstLoad')
+            }
+
+            else if(visualType==="table"){
                 this.createTable(containerId, data);
             }
             if(visualType==="scatter"){
@@ -63,7 +67,12 @@ export default {
             }
         }
         if(operation === "unique_attr"){
-            if(visualType==="table"){
+            if(containerId!=="chart-container-default"){
+                if(visualType==="table"){
+                    this.createList(containerId, data);
+                }
+            }
+            else{
                 this.createList(containerId, data);
             }
         }
@@ -127,9 +136,15 @@ export default {
                 else if(visualType==="line chart"){
                     this.createLineChart(containerId, data, seqView);
                 }
+                else if(visualType==="table"){
+                    this.createTable(containerId, data);
+                }
                 else{
                     this.createTimeLine(containerId, data, seqView);
                 }
+            }
+            else{
+                this.createTable(containerId, data);
             }
         }
         if(["pattern"].includes(operation)){
@@ -146,133 +161,230 @@ export default {
         }
     },
     // 表格类型
+    // createTable(containerId, data) {
+    //     // 检查数据的有效性
+    //     if (!data || !Object.keys(data).length) {
+    //         console.error('Invalid or empty data provided to createTable');
+    //         return;
+    //     }
+    //
+    //     const container = document.getElementById(containerId);
+    //     createTableHTML(containerId, data);
+    //
+    //     function createTableHTML(containerId, data) {
+    //         // 创建包含表格的滚动容器的 HTML
+    //         let tableHtml = '<div class="el-table-wrapper">';
+    //         tableHtml += '<button id="exportButton" class="el-button" style="margin-left: 0">Export Table</button>';
+    //
+    //         tableHtml += '<table class="el-table">';
+    //         // 添加表头
+    //         tableHtml += '<thead><tr>';
+    //         Object.keys(data).forEach(key => {
+    //             tableHtml += `<th class="el-table-column">${key}</th>`;
+    //         });
+    //         tableHtml += '</tr></thead>';
+    //
+    //         // 添加表格数据
+    //         tableHtml += '<tbody>';
+    //         const rowCount = data[Object.keys(data)[0]].length; // 假设所有数组长度相同
+    //         for (let i = 0; i < rowCount; i++) {
+    //             tableHtml += '<tr>';
+    //             Object.keys(data).forEach(key => {
+    //                 const cellData = data[key][i];
+    //                 if (typeof cellData === 'string' && cellData.includes('GMT')) {
+    //                     // 如果数据是日期时间字符串类型，进行格式化
+    //                     const formattedDateTime = formatDateTime(cellData);
+    //                     tableHtml += `<td class="el-table-column">${formattedDateTime}</td>`;
+    //                 } else {
+    //                     // 否则直接显示数据
+    //                     tableHtml += `<td class="el-table-column">${cellData}</td>`;
+    //                 }
+    //             });
+    //
+    //             tableHtml += '</tr>';
+    //         }
+    //         tableHtml += '</tbody>';
+    //         tableHtml += '</table></div>';
+    //
+    //         if (container) {
+    //             container.innerHTML = tableHtml;
+    //             // 绑定导出按钮的点击事件
+    //             document.getElementById('exportButton').addEventListener('click', function () {
+    //                 exportTableToCSV(containerId, 'exported_table.csv');
+    //             });
+    //         } else {
+    //             console.error(`Container with ID '${containerId}' not found.`);
+    //         }
+    //     }
+    // },
+
     createTable(containerId, data) {
-        // 检查数据的有效性
-        if (!data || !Object.keys(data).length) {
-            console.error('Invalid or empty data provided to createTable');
+        console.log("id",containerId)
+        console.log("data",data)
+
+        // 获取目标容器元素
+        const container = document.getElementById(containerId);
+        if (!container) {
             return;
         }
 
-        const container = document.getElementById(containerId);
-        createTableHTML(containerId, data);
+        // 递归渲染数据为表格，带有隐藏/展开功能
+        function renderData(data, level = 1) {
+            const table = document.createElement('table');
+            table.classList.add('el-table');
+            table.style.borderCollapse = 'collapse';
+            table.style.width = '100%';
 
-        function createTableHTML(containerId, data) {
-            // 创建包含表格的滚动容器的 HTML
-            let tableHtml = '<div class="el-table-wrapper">';
-            tableHtml += '<button id="exportButton" class="el-button" style="margin-left: 0">Export Table</button>';
+            if (typeof data === 'object' && !Array.isArray(data)) {
+                // 获取每一层的键
+                const keys = Object.keys(data);
 
-            tableHtml += '<table class="el-table">';
-            // 添加表头
-            tableHtml += '<thead><tr>';
-            Object.keys(data).forEach(key => {
-                tableHtml += `<th class="el-table-column">${key}</th>`;
-            });
-            tableHtml += '</tr></thead>';
-
-            // 添加表格数据
-            tableHtml += '<tbody>';
-            const rowCount = data[Object.keys(data)[0]].length; // 假设所有数组长度相同
-            for (let i = 0; i < rowCount; i++) {
-                tableHtml += '<tr>';
-                Object.keys(data).forEach(key => {
-                    const cellData = data[key][i];
-                    if (typeof cellData === 'string' && cellData.includes('GMT')) {
-                        // 如果数据是日期时间字符串类型，进行格式化
-                        const formattedDateTime = formatDateTime(cellData);
-                        tableHtml += `<td class="el-table-column">${formattedDateTime}</td>`;
-                    } else {
-                        // 否则直接显示数据
-                        tableHtml += `<td class="el-table-column">${cellData}</td>`;
-                    }
+                // 动态创建表头
+                const headerRow = document.createElement('tr');
+                keys.forEach((key) => {
+                    const th = document.createElement('th');
+                    th.textContent = key;
+                    th.style.border = '1px solid #e0e0e0';
+                    th.style.padding = '10px';
+                    th.style.background = '#f3f3f3';
+                    th.style.fontWeight = 'bold';
+                    headerRow.appendChild(th);
                 });
+                table.appendChild(headerRow);
 
-                tableHtml += '</tr>';
-            }
-            tableHtml += '</tbody>';
-            tableHtml += '</table></div>';
+                // 确保表格每一行的行数与数据中的最大行数保持一致
+                const rowCount = Math.max(...keys.map(key => Array.isArray(data[key]) ? data[key].length : 1));
 
-            if (container) {
-                container.innerHTML = tableHtml;
-                // 绑定导出按钮的点击事件
-                document.getElementById('exportButton').addEventListener('click', function () {
-                    exportTableToCSV(containerId, 'exported_table.csv');
-                });
-            } else {
-                console.error(`Container with ID '${containerId}' not found.`);
+                // 渲染数据行
+                for (let i = 0; i < rowCount; i++) {
+                    const row = document.createElement('tr');
+                    keys.forEach((key) => {
+                        const td = document.createElement('td');
+                        td.style.border = '1px solid #e0e0e0';
+                        td.style.padding = '10px';
+
+                        if (Array.isArray(data[key])) {
+                            // 显示数组中的值或空字符串
+                            td.textContent = data[key][i] !== undefined ? data[key][i] : '';
+                            td.classList.add('el-hover-cell'); // 只有最底层的值加悬浮效果
+                        } else if (typeof data[key] === 'object') {
+                            // 添加隐藏/展开按钮
+                            const toggleButton = document.createElement('button');
+                            toggleButton.textContent = 'Hide'; // 默认显示展开状态
+                            toggleButton.style.marginLeft = '0px';
+                            toggleButton.style.marginTop = '-7px';
+                            toggleButton.style.marginBottom = '2px';
+                            toggleButton.className = 'el-button';
+
+                            // 嵌套表格
+                            const nestedTable = renderData(data[key], level + 1);
+                            td.appendChild(toggleButton);
+                            td.appendChild(nestedTable);
+                            td.style.verticalAlign = 'top'; // 确保嵌套表格从顶部对齐
+
+                            // 隐藏/展开功能
+                            toggleButton.addEventListener('click', function () {
+                                if (nestedTable.style.display === 'none') {
+                                    nestedTable.style.display = '';
+                                    toggleButton.textContent = 'Hide';
+                                } else {
+                                    nestedTable.style.display = 'none';
+                                    toggleButton.textContent = 'Show';
+                                }
+                            });
+                        } else {
+                            // 显示单一值
+                            td.textContent = i === 0 ? data[key] : ''; // 确保值只显示在第一行
+                            td.rowSpan = rowCount; // 合并行，避免空白
+                            td.classList.add('el-hover-cell'); // 只有最底层的值加悬浮效果
+                        }
+
+                        row.appendChild(td);
+                    });
+                    table.appendChild(row);
+                }
             }
+
+            console.log("这里")
+
+            return table;
         }
+
+        container.innerHTML = ''; // 清空容器
+        const topLevelTable = renderData(data); // 渲染数据
+        container.appendChild(topLevelTable);
     },
 
     createList(containerId, data) {
-    // 获取目标容器元素
-    const container = document.getElementById(containerId);
-    if (!container) {
-        return;
-    }
-    function renderData(data, level) {
-        const table = document.createElement('table');
-        table.classList.add('el-table');
-        table.style.borderCollapse = 'collapse';
-        table.style.width = '100%';
+        // 获取目标容器元素
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return;
+        }
+        function renderData(data, level) {
+            const table = document.createElement('table');
+            table.classList.add('el-table');
+            table.style.borderCollapse = 'collapse';
+            table.style.width = '100%';
 
-        for (const key in data) {
-            const tr = document.createElement('tr');
-            tr.classList.add('el-table-row', `level-${level}`);
+            for (const key in data) {
+                const tr = document.createElement('tr');
+                tr.classList.add('el-table-row', `level-${level}`);
 
-            const th = document.createElement('th');
-            th.textContent = key;
-            th.classList.add('el-table-column', `level-${level}`);
-            th.style.border = '1px solid #e0e0e0';
-            th.style.padding = '10px';
-            th.style.textAlign = 'left';
-            th.style.background = '#f3f3f3';
-            th.style.fontWeight = 'bold';
+                const th = document.createElement('th');
+                th.textContent = key;
+                th.classList.add('el-table-column', `level-${level}`);
+                th.style.border = '1px solid #e0e0e0';
+                th.style.padding = '10px';
+                th.style.textAlign = 'left';
+                th.style.background = '#f3f3f3';
+                th.style.fontWeight = 'bold';
 
-            const value = data[key];
+                const value = data[key];
 
-            if (typeof value === 'object' && !Array.isArray(value)) {
-                // 添加展开/隐藏按钮
-                const toggleButton = document.createElement('button');
-                toggleButton.className = 'el-button';
-                toggleButton.textContent = '隐藏'; // 默认状态为展开，所以按钮显示“隐藏”
-                const nestedRow = document.createElement('tr');
-                nestedRow.classList.add('nested-table', `level-${level + 1}`);
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    // 添加展开/隐藏按钮
+                    const toggleButton = document.createElement('button');
+                    toggleButton.className = 'el-button';
+                    toggleButton.textContent = 'Hide'; // 默认状态为展开，所以按钮显示“隐藏”
+                    const nestedRow = document.createElement('tr');
+                    nestedRow.classList.add('nested-table', `level-${level + 1}`);
 
-                toggleButton.onclick = () => {
-                    toggleVisibility(nestedRow, toggleButton);
-                };
-                th.appendChild(toggleButton);
+                    toggleButton.onclick = () => {
+                        toggleVisibility(nestedRow, toggleButton);
+                    };
+                    th.appendChild(toggleButton);
 
-                // 创建嵌套表格所在的行
-                const td = document.createElement('td');
-                td.colSpan = 2;
-                td.appendChild(renderData(value, level + 1));
-                nestedRow.appendChild(td);
+                    // 创建嵌套表格所在的行
+                    const td = document.createElement('td');
+                    td.colSpan = 2;
+                    td.appendChild(renderData(value, level + 1));
+                    nestedRow.appendChild(td);
 
-                tr.appendChild(th);
-                table.appendChild(tr);
-                table.appendChild(nestedRow);
-            } else {
-                // 显示键值对
-                const tdValue = document.createElement('td');
-                tdValue.textContent = value;
-                tdValue.style.border = '1px solid #e0e0e0';
-                tdValue.style.width = "70%"; // 直接设置宽度
-                tdValue.style.padding = '10px';
-                tdValue.style.textAlign = 'left';
+                    tr.appendChild(th);
+                    table.appendChild(tr);
+                    table.appendChild(nestedRow);
+                } else {
+                    // 显示键值对
+                    const tdValue = document.createElement('td');
+                    tdValue.textContent = value;
+                    tdValue.style.border = '1px solid #e0e0e0';
+                    tdValue.style.width = "70%"; // 直接设置宽度
+                    tdValue.style.padding = '10px';
+                    tdValue.style.textAlign = 'left';
 
-                tr.appendChild(th);
-                tr.appendChild(tdValue);
-                table.appendChild(tr);
+                    tr.appendChild(th);
+                    tr.appendChild(tdValue);
+                    table.appendChild(tr);
+                }
             }
+
+            return table;
         }
 
-        return table;
-    }
-
-    container.innerHTML = ''; // 清空容器
-    const topLevelTable = renderData(data, 1); // 从第一级开始渲染
-    container.appendChild(topLevelTable);
+        container.innerHTML = ''; // 清空容器
+        const topLevelTable = renderData(data, 1); // 从第一级开始渲染
+        container.appendChild(topLevelTable);
     },
 
     createScatter(containerId, data){
@@ -675,7 +787,7 @@ export default {
                 .attr('height', d => chartHeight - yScale(data[key][d]))
                 .attr('fill', d=> {
                     return getColorForValue(data[key][d], minValue, maxValue);
-                    })
+                })
                 .style('cursor','pointer')
                 .style('pointer-events', 'all')
                 .on('mouseover', function(event, d) {
@@ -710,224 +822,67 @@ export default {
                 })
         });
 
-        store.watch(() => store.state.globalHighlight, (newValue) => {
-            chartGroup.selectAll('.newBarChart').remove()
-            const filteredCodeContext = container.getAttribute("filteredCodeContext");
-            let keysInNewData
-            if (filteredCodeContext !== null && filteredCodeContext !== "") {
-                const code=container.getAttribute("filteredCodeContext")
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code })
-                    .then(response => {
-                        const newData = response.data['result']
-                        keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
-                        const filterParameters = store.state.filterRules
-
-                        filledData = fillData(data, newData)
-                        if(containerId!==store.state.curHighlightContainer){
-                            outerKeys.forEach((key, i) => {
-                                chartGroup.selectAll('.newBarChart')
-                                    .data(Object.keys(filledData[key]))
-                                    .enter().append('rect')
-                                    .attr("class",'newBarChart')
-                                    .attr('barName', d=>'newBar-'+key+'-'+d)
-                                    .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                                    .attr('y', d => yScale(filledData[key][d]))
-                                    .attr('width', xScale.bandwidth() / outerKeys.length)
-                                    .attr('height', d => {
-                                        return chartHeight - yScale(filledData[key][d])})
-                                    .attr('fill', '#A9A9A9')
-                                    .style('cursor','pointer')
-                                    .on('mouseover', function(event, d) {
-                                        d3.select(this).attr('opacity', 0.7);
-                                        tooltip.transition()
-                                            .duration(200)
-                                            .style('opacity', 0.8);
-                                        let tooltipContent
-                                        if(key===""){tooltipContent=`${d} : <strong>${filledData[key][d]}</strong> `}
-                                        else{
-                                            tooltipContent=`${d}<br/>${key}: <strong>${filledData[key][d]}</strong> `
-                                        }
-                                        tooltip.html(tooltipContent)
-                                            .style('left', (event.pageX)-containerRect.left + 'px')
-                                            .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                                    })
-                                    .on('mouseout', function() {
-                                        d3.select(this).attr('opacity', 1);
-                                        tooltip.transition()
-                                            .duration(500)
-                                            .style('opacity', 0);
-                                    })
-                                    .on("click", function(event, d) {
-                                        event.stopPropagation();
-                                        if(key===""){
-                                            const myObject = {};
-                                            myObject[foundKey] = d
-                                            changeGlobalHighlight(myObject, containerId)}
-                                        onResize()
-                                        // else{
-                                        //     changeGlobalHighlight(key, containerId)
-                                        // }
-                                    })
-                            });
-                        }
-                        // 高亮x轴
-                        if(Object.keys(filterParameters).includes(foundKey)){
-                            chartGroup.selectAll('.x-axis text')
-                                .style('font-weight', axisText => keysInNewData.includes(axisText) ? 'bold' : 'normal')
-                                .style('fill', axisText => keysInNewData.includes(axisText) ? '#F56C6C' : '#606266');
-                        }
-                        else{
-                            chartGroup.selectAll('.x-axis text')
-                                .style('font-weight', 'normal')
-                                .style('fill', '#606266');
-                        }
-
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            }
-            else{
-                chartGroup.selectAll('.x-axis text')
-                    .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
-                    .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
-            }
-            onResize()
-        }, { deep: true });
-
-        store.watch(() => store.state.globalMouseover, (newValue) => {
-            chartGroup.selectAll('.mouseoverBarChart').remove()
-            const filteredCodeContext = container.getAttribute("mouseoverCodeContext");
-            let keysInNewData
-            if (filteredCodeContext !== null && filteredCodeContext !== "") {
-                const code=container.getAttribute("mouseoverCodeContext")
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code })
-                    .then(response => {
-                        const newData = response.data['result']
-                        keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
-                        const filterParameters = store.state.mouseoverRules
-
-                        // 高亮柱状图
-                        mouseoverData = fillData(data, newData)
-                        if(containerId!==store.state.curMouseoverContainer){
-                            outerKeys.forEach((key, i) => {
-                                chartGroup.selectAll('.mouseoverBarChart')
-                                    .data(Object.keys(mouseoverData[key]))
-                                    .enter().append('rect')
-                                    .attr("class",'mouseoverBarChart')
-                                    .attr('barName', d=>'mouseoverBar-'+key+'-'+d)
-                                    .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                                    .attr('y', d => yScale(mouseoverData[key][d]))
-                                    .attr('width', xScale.bandwidth() / outerKeys.length)
-                                    .attr('height', d => {
-                                        return chartHeight - yScale(mouseoverData[key][d])})
-                                    .attr('fill', '#eeeeee')
-                                    .style('cursor','pointer')
-                                    .on('mouseover', function(event, d) {
-                                        d3.select(this).attr('opacity', 0.7);
-                                        tooltip.transition()
-                                            .duration(200)
-                                            .style('opacity', 0.8);
-                                        let tooltipContent
-                                        if(key===""){tooltipContent=`${d} : <strong>${mouseoverData[key][d]}</strong> `}
-                                        else{
-                                            tooltipContent=`${d}<br/>${key}: <strong>${mouseoverData[key][d]}</strong> `
-                                        }
-                                        tooltip.html(tooltipContent)
-                                            .style('left', (event.pageX)-containerRect.left + 'px')
-                                            .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                                        // onResize()
-                                    })
-                                    .on('mouseout', function() {
-                                        d3.select(this).attr('opacity', 1);
-                                        tooltip.transition()
-                                            .duration(500)
-                                            .style('opacity', 0);
-                                    });
-                            });
-                        }
-                        // 高亮x轴
-                        if(Object.keys(filterParameters).includes(foundKey)){
-                            chartGroup.selectAll('.x-axis text')
-                                .classed('mouseover-legend', axisText => keysInNewData.includes(axisText));
-                        }
-                        else{
-                            chartGroup.selectAll('.x-axis text')
-                                .classed('mouseover-legend', axisText => keysInNewData.includes(axisText));
-                        }
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            }
-            else{
-                chartGroup.selectAll('.x-axis text')
-                    .classed('mouseover-legend', false)
-            }
-            onResize()
-        }, { deep: true });
-
-        store.watch(() => store.state.brushedEvent, (newValue) => {
-            chartGroup.selectAll('.eventBarChart').remove()
-            const brushedCodeContext = container.getAttribute("brushedCodeContext");
-            let keysInNewData
-            if (brushedCodeContext !== null && brushedCodeContext !== "") {
-                const code=container.getAttribute("brushedCodeContext")
-                const [dataKey] = code.split(".");
-                const originalData = store.state.originalTableData[dataKey]
-                const foundKey = findKeyByValue(originalData, Object.keys(data[outerKeys[0]])[0]);
-                if(!code.includes("pattern")){
+        if(container.id!=="chart-container-default"){
+            store.watch(() => store.state.globalHighlight, (newValue) => {
+                chartGroup.selectAll('.newBarChart').remove()
+                const filteredCodeContext = container.getAttribute("filteredCodeContext");
+                let keysInNewData
+                if (filteredCodeContext !== null && filteredCodeContext !== "") {
+                    const code=container.getAttribute("filteredCodeContext")
                     axios.post('http://127.0.0.1:5000/executeCode', { code: code })
                         .then(response => {
                             const newData = response.data['result']
                             keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
-                            const filterParameters = store.state.brushedRules
+                            const filterParameters = store.state.filterRules
 
-                            eventData = fillData(data, newData)
-                            outerKeys.forEach((key, i) => {
-                                chartGroup.selectAll('.eventBarChart')
-                                    .data(Object.keys(eventData[key]))
-                                    .enter().append('rect')
-                                    .attr("class",'eventBarChart')
-                                    .attr('barName', d=>'eventBar-'+key+'-'+d)
-                                    .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                                    .attr('y', d => yScale(eventData[key][d]))
-                                    .attr('width', xScale.bandwidth() / outerKeys.length)
-                                    .attr('height', d => {
-                                        return chartHeight - yScale(eventData[key][d])})
-                                    .attr('fill', '#A9A9A9')
-                                    .style('cursor','pointer')
-                                    .on('mouseover', function(event, d) {
-                                        d3.select(this).attr('opacity', 0.7);
-                                        tooltip.transition()
-                                            .duration(200)
-                                            .style('opacity', 0.8);
-                                        let tooltipContent
-                                        if(key===""){tooltipContent=`${d} : <strong>${eventData[key][d]}</strong> `}
-                                        else{
-                                            tooltipContent=`${d}<br/>${key}: <strong>${eventData[key][d]}</strong> `
-                                        }
-                                        tooltip.html(tooltipContent)
-                                            .style('left', (event.pageX)-containerRect.left + 'px')
-                                            .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                                    })
-                                    .on('mouseout', function() {
-                                        d3.select(this).attr('opacity', 1);
-                                        tooltip.transition()
-                                            .duration(500)
-                                            .style('opacity', 0);
-                                    })
-                                    .on("click", function(event, d) {
-                                        event.stopPropagation();
-                                        if(key===""){
-                                            const myObject = {};
-                                            myObject[foundKey] = d
-                                            changeGlobalHighlight(myObject, containerId)}
-                                        // else{
-                                        //     changeGlobalHighlight(key, containerId)
-                                        // }
-                                    })
-                            });
+                            filledData = fillData(data, newData)
+                            if(containerId!==store.state.curHighlightContainer){
+                                outerKeys.forEach((key, i) => {
+                                    chartGroup.selectAll('.newBarChart')
+                                        .data(Object.keys(filledData[key]))
+                                        .enter().append('rect')
+                                        .attr("class",'newBarChart')
+                                        .attr('barName', d=>'newBar-'+key+'-'+d)
+                                        .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
+                                        .attr('y', d => yScale(filledData[key][d]))
+                                        .attr('width', xScale.bandwidth() / outerKeys.length)
+                                        .attr('height', d => {
+                                            return chartHeight - yScale(filledData[key][d])})
+                                        .attr('fill', '#A9A9A9')
+                                        .style('cursor','pointer')
+                                        .on('mouseover', function(event, d) {
+                                            d3.select(this).attr('opacity', 0.7);
+                                            tooltip.transition()
+                                                .duration(200)
+                                                .style('opacity', 0.8);
+                                            let tooltipContent
+                                            if(key===""){tooltipContent=`${d} : <strong>${filledData[key][d]}</strong> `}
+                                            else{
+                                                tooltipContent=`${d}<br/>${key}: <strong>${filledData[key][d]}</strong> `
+                                            }
+                                            tooltip.html(tooltipContent)
+                                                .style('left', (event.pageX)-containerRect.left + 'px')
+                                                .style('top', (event.pageY*0.98)-containerRect.top + 'px');
+                                        })
+                                        .on('mouseout', function() {
+                                            d3.select(this).attr('opacity', 1);
+                                            tooltip.transition()
+                                                .duration(500)
+                                                .style('opacity', 0);
+                                        })
+                                        .on("click", function(event, d) {
+                                            event.stopPropagation();
+                                            if(key===""){
+                                                const myObject = {};
+                                                myObject[foundKey] = d
+                                                changeGlobalHighlight(myObject, containerId)}
+                                            onResize()
+                                            // else{
+                                            //     changeGlobalHighlight(key, containerId)
+                                            // }
+                                        })
+                                });
+                            }
                             // 高亮x轴
                             if(Object.keys(filterParameters).includes(foundKey)){
                                 chartGroup.selectAll('.x-axis text')
@@ -945,134 +900,294 @@ export default {
                             console.error(error);
                         });
                 }
-            }
-            else{
-                chartGroup.selectAll('.x-axis text')
-                    .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
-                    .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
-            }
-        }, { deep: true });
+                else{
+                    chartGroup.selectAll('.x-axis text')
+                        .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
+                        .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
+                }
+                onResize()
+            }, { deep: true });
 
-        store.watch(() => store.state.brushedPattern, (newValue) => {
-            chartGroup.selectAll('.patternBarChart').remove()
-            const codeContext = container.getAttribute("codeContext");
-            // 去除 .count()
-            let stringWithoutCount = codeContext.replace(".count()", "");
-            let code = stringWithoutCount.replace(".view_type(\"bar chart\")", ".view_type(\"timeline\")")
-            if(code.includes("pattern")){
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code, support: store.state.curMinSupport })
-                    .then(response => {
-                        const newData = response.data['result']
-                        const patternList = countMatchingLists(newData,newValue)
-                        patternData = {"":patternList}
-                        outerKeys.forEach((key, i) => {
-                            chartGroup.selectAll('.patternBarChart')
-                                .data(Object.keys(patternData[key]))
-                                .enter().append('rect')
-                                .attr("class",'patternBarChart')
-                                .attr('barName', d=>'patternBar-'+key+'-'+d)
-                                .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                                .attr('y', d => yScale(patternData[key][d]))
-                                .attr('width', xScale.bandwidth() / outerKeys.length)
-                                .attr('height', d => {
-                                    return chartHeight - yScale(patternData[key][d])})
-                                .attr('fill', '#A9A9A9')
-                                .style('cursor','pointer')
-                                .on('mouseover', function(event, d) {
-                                    d3.select(this).attr('opacity', 0.7);
-                                    tooltip.transition()
-                                        .duration(200)
-                                        .style('opacity', 0.8);
-                                    let tooltipContent
-                                    if(key===""){tooltipContent=`${d} : <strong>${patternData[key][d]}</strong> `}
-                                    else{
-                                        tooltipContent=`${d}<br/>${key}: <strong>${patternData[key][d]}</strong> `
-                                    }
-                                    tooltip.html(tooltipContent)
-                                        .style('left', (event.pageX)-containerRect.left + 'px')
-                                        .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                                })
-                                .on('mouseout', function() {
-                                    d3.select(this).attr('opacity', 1);
-                                    tooltip.transition()
-                                        .duration(500)
-                                        .style('opacity', 0);
-                                })
-                                .on("click", function(event, d) {
-                                    event.stopPropagation();
-                                    if(key===""){
-                                        const myObject = {};
-                                        myObject[foundKey] = d
-                                        changeGlobalHighlight(myObject, containerId)}
-                                    // else{
-                                    //     changeGlobalHighlight(key, containerId)
-                                    // }
-                                })
+            store.watch(() => store.state.globalMouseover, (newValue) => {
+                chartGroup.selectAll('.mouseoverBarChart').remove()
+                const filteredCodeContext = container.getAttribute("mouseoverCodeContext");
+                let keysInNewData
+                if (filteredCodeContext !== null && filteredCodeContext !== "") {
+                    const code=container.getAttribute("mouseoverCodeContext")
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code })
+                        .then(response => {
+                            const newData = response.data['result']
+                            keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
+                            const filterParameters = store.state.mouseoverRules
+
+                            // 高亮柱状图
+                            mouseoverData = fillData(data, newData)
+                            if(containerId!==store.state.curMouseoverContainer){
+                                outerKeys.forEach((key, i) => {
+                                    chartGroup.selectAll('.mouseoverBarChart')
+                                        .data(Object.keys(mouseoverData[key]))
+                                        .enter().append('rect')
+                                        .attr("class",'mouseoverBarChart')
+                                        .attr('barName', d=>'mouseoverBar-'+key+'-'+d)
+                                        .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
+                                        .attr('y', d => yScale(mouseoverData[key][d]))
+                                        .attr('width', xScale.bandwidth() / outerKeys.length)
+                                        .attr('height', d => {
+                                            return chartHeight - yScale(mouseoverData[key][d])})
+                                        .attr('fill', '#eeeeee')
+                                        .style('cursor','pointer')
+                                        .on('mouseover', function(event, d) {
+                                            d3.select(this).attr('opacity', 0.7);
+                                            tooltip.transition()
+                                                .duration(200)
+                                                .style('opacity', 0.8);
+                                            let tooltipContent
+                                            if(key===""){tooltipContent=`${d} : <strong>${mouseoverData[key][d]}</strong> `}
+                                            else{
+                                                tooltipContent=`${d}<br/>${key}: <strong>${mouseoverData[key][d]}</strong> `
+                                            }
+                                            tooltip.html(tooltipContent)
+                                                .style('left', (event.pageX)-containerRect.left + 'px')
+                                                .style('top', (event.pageY*0.98)-containerRect.top + 'px');
+                                            // onResize()
+                                        })
+                                        .on('mouseout', function() {
+                                            d3.select(this).attr('opacity', 1);
+                                            tooltip.transition()
+                                                .duration(500)
+                                                .style('opacity', 0);
+                                        });
+                                });
+                            }
+                            // 高亮x轴
+                            if(Object.keys(filterParameters).includes(foundKey)){
+                                chartGroup.selectAll('.x-axis text')
+                                    .classed('mouseover-legend', axisText => keysInNewData.includes(axisText));
+                            }
+                            else{
+                                chartGroup.selectAll('.x-axis text')
+                                    .classed('mouseover-legend', axisText => keysInNewData.includes(axisText));
+                            }
+                        })
+                        .catch(error => {
+                            console.error(error);
                         });
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            }
-        }, { deep: true });
+                }
+                else{
+                    chartGroup.selectAll('.x-axis text')
+                        .classed('mouseover-legend', false)
+                }
+                onResize()
+            }, { deep: true });
 
-        store.watch(() => store.state.curMinSupport, (newValue) => {
-            chartGroup.selectAll('.newBarChart').remove()
-            chartGroup.selectAll('.eventBarChart').remove()
-            chartGroup.selectAll('.patternBarChart').remove()
-            const code=container.getAttribute("codeContext")
-           if(code.includes("pattern")){
-               axios.post('http://127.0.0.1:5000/executeCode', { code: code, support:newValue })
-                   .then(response => {
-                       const newData = response.data['result']
-                       // 计算新的最大值和最小值
-                       const newMaxValue = d3.max(outerKeys, key => d3.max(Object.keys(newData[key]), innerKey => newData[key][innerKey]));
-                       const newMinValue = d3.min(outerKeys, key => d3.min(Object.keys(newData[key]), innerKey => newData[key][innerKey]));
-                       // 更新 y 轴的比例尺
-                       yScale.domain([0, newMaxValue])
-                       const yAxisTicks = yScale.ticks()
-                           .filter(tick => Number.isInteger(tick));
-                       const yAxis = d3.axisLeft(yScale)
-                           .tickValues(yAxisTicks)
-                           .tickFormat(d3.format('d'));
+            store.watch(() => store.state.brushedEvent, (newValue) => {
+                chartGroup.selectAll('.eventBarChart').remove()
+                const brushedCodeContext = container.getAttribute("brushedCodeContext");
+                let keysInNewData
+                if (brushedCodeContext !== null && brushedCodeContext !== "") {
+                    const code=container.getAttribute("brushedCodeContext")
+                    const [dataKey] = code.split(".");
+                    const originalData = store.state.originalTableData[dataKey]
+                    const foundKey = findKeyByValue(originalData, Object.keys(data[outerKeys[0]])[0]);
+                    if(!code.includes("pattern")){
+                        axios.post('http://127.0.0.1:5000/executeCode', { code: code })
+                            .then(response => {
+                                const newData = response.data['result']
+                                keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
+                                const filterParameters = store.state.brushedRules
 
-                       chartGroup.select('.y-axis').call(yAxis);
-                       // 绑定新的数据到矩形上
-                       outerKeys.forEach((key, i) => {
-                           chartGroup.selectAll('.oldBarChart')
-                               .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
-                               .attr('y', d => yScale(newData[key][d]))
-                               .attr('width', xScale.bandwidth() / outerKeys.length)
-                               .attr('height', d => chartHeight - yScale(newData[key][d]))
-                               .attr('fill', d=> {
-                                   return getColorForValue(newData[key][d], newMinValue, newMaxValue);
-                               })
-                               .on('mouseover', function(event, d) {
-                                   d3.select(this).attr('opacity', 0.7);
-                                   tooltip.transition()
-                                       .duration(200)
-                                       .style('opacity', 0.8);
-                                   let tooltipContent
-                                   if(key===""){tooltipContent=`${d} : <strong>${newData[key][d]}</strong> `}
-                                   else{
-                                       tooltipContent=`${d}<br/>${key}: <strong>${newData[key][d]}</strong> `
-                                   }
-                                   tooltip.html(tooltipContent)
-                                       .style('left', (event.pageX)-containerRect.left + 'px')
-                                       .style('top', (event.pageY*0.98)-containerRect.top + 'px');
-                               })
-                       });
-                   })
-                   .catch(error => {
-                       console.error(error);
-                   });
-           }
-        }, { deep: true });
+                                eventData = fillData(data, newData)
+                                outerKeys.forEach((key, i) => {
+                                    chartGroup.selectAll('.eventBarChart')
+                                        .data(Object.keys(eventData[key]))
+                                        .enter().append('rect')
+                                        .attr("class",'eventBarChart')
+                                        .attr('barName', d=>'eventBar-'+key+'-'+d)
+                                        .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
+                                        .attr('y', d => yScale(eventData[key][d]))
+                                        .attr('width', xScale.bandwidth() / outerKeys.length)
+                                        .attr('height', d => {
+                                            return chartHeight - yScale(eventData[key][d])})
+                                        .attr('fill', '#A9A9A9')
+                                        .style('cursor','pointer')
+                                        .on('mouseover', function(event, d) {
+                                            d3.select(this).attr('opacity', 0.7);
+                                            tooltip.transition()
+                                                .duration(200)
+                                                .style('opacity', 0.8);
+                                            let tooltipContent
+                                            if(key===""){tooltipContent=`${d} : <strong>${eventData[key][d]}</strong> `}
+                                            else{
+                                                tooltipContent=`${d}<br/>${key}: <strong>${eventData[key][d]}</strong> `
+                                            }
+                                            tooltip.html(tooltipContent)
+                                                .style('left', (event.pageX)-containerRect.left + 'px')
+                                                .style('top', (event.pageY*0.98)-containerRect.top + 'px');
+                                        })
+                                        .on('mouseout', function() {
+                                            d3.select(this).attr('opacity', 1);
+                                            tooltip.transition()
+                                                .duration(500)
+                                                .style('opacity', 0);
+                                        })
+                                        .on("click", function(event, d) {
+                                            event.stopPropagation();
+                                            if(key===""){
+                                                const myObject = {};
+                                                myObject[foundKey] = d
+                                                changeGlobalHighlight(myObject, containerId)}
+                                            // else{
+                                            //     changeGlobalHighlight(key, containerId)
+                                            // }
+                                        })
+                                });
+                                // 高亮x轴
+                                if(Object.keys(filterParameters).includes(foundKey)){
+                                    chartGroup.selectAll('.x-axis text')
+                                        .style('font-weight', axisText => keysInNewData.includes(axisText) ? 'bold' : 'normal')
+                                        .style('fill', axisText => keysInNewData.includes(axisText) ? '#F56C6C' : '#606266');
+                                }
+                                else{
+                                    chartGroup.selectAll('.x-axis text')
+                                        .style('font-weight', 'normal')
+                                        .style('fill', '#606266');
+                                }
+
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                }
+                else{
+                    chartGroup.selectAll('.x-axis text')
+                        .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
+                        .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
+                }
+            }, { deep: true });
+
+            store.watch(() => store.state.brushedPattern, (newValue) => {
+                chartGroup.selectAll('.patternBarChart').remove()
+                const codeContext = container.getAttribute("codeContext");
+                // 去除 .count()
+                let stringWithoutCount = codeContext.replace(".count()", "");
+                let code = stringWithoutCount.replace(".view_type(\"bar chart\")", ".view_type(\"timeline\")")
+                if(code.includes("pattern")){
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code, support: store.state.curMinSupport })
+                        .then(response => {
+                            const newData = response.data['result']
+                            const patternList = countMatchingLists(newData,newValue)
+                            patternData = {"":patternList}
+                            outerKeys.forEach((key, i) => {
+                                chartGroup.selectAll('.patternBarChart')
+                                    .data(Object.keys(patternData[key]))
+                                    .enter().append('rect')
+                                    .attr("class",'patternBarChart')
+                                    .attr('barName', d=>'patternBar-'+key+'-'+d)
+                                    .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
+                                    .attr('y', d => yScale(patternData[key][d]))
+                                    .attr('width', xScale.bandwidth() / outerKeys.length)
+                                    .attr('height', d => {
+                                        return chartHeight - yScale(patternData[key][d])})
+                                    .attr('fill', '#A9A9A9')
+                                    .style('cursor','pointer')
+                                    .on('mouseover', function(event, d) {
+                                        d3.select(this).attr('opacity', 0.7);
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style('opacity', 0.8);
+                                        let tooltipContent
+                                        if(key===""){tooltipContent=`${d} : <strong>${patternData[key][d]}</strong> `}
+                                        else{
+                                            tooltipContent=`${d}<br/>${key}: <strong>${patternData[key][d]}</strong> `
+                                        }
+                                        tooltip.html(tooltipContent)
+                                            .style('left', (event.pageX)-containerRect.left + 'px')
+                                            .style('top', (event.pageY*0.98)-containerRect.top + 'px');
+                                    })
+                                    .on('mouseout', function() {
+                                        d3.select(this).attr('opacity', 1);
+                                        tooltip.transition()
+                                            .duration(500)
+                                            .style('opacity', 0);
+                                    })
+                                    .on("click", function(event, d) {
+                                        event.stopPropagation();
+                                        if(key===""){
+                                            const myObject = {};
+                                            myObject[foundKey] = d
+                                            changeGlobalHighlight(myObject, containerId)}
+                                        // else{
+                                        //     changeGlobalHighlight(key, containerId)
+                                        // }
+                                    })
+                            });
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+            }, { deep: true });
+
+            store.watch(() => store.state.curMinSupport, (newValue) => {
+                chartGroup.selectAll('.newBarChart').remove()
+                chartGroup.selectAll('.eventBarChart').remove()
+                chartGroup.selectAll('.patternBarChart').remove()
+                const code=container.getAttribute("codeContext")
+                if(code.includes("pattern")){
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code, support:newValue })
+                        .then(response => {
+                            const newData = response.data['result']
+                            // 计算新的最大值和最小值
+                            const newMaxValue = d3.max(outerKeys, key => d3.max(Object.keys(newData[key]), innerKey => newData[key][innerKey]));
+                            const newMinValue = d3.min(outerKeys, key => d3.min(Object.keys(newData[key]), innerKey => newData[key][innerKey]));
+                            // 更新 y 轴的比例尺
+                            yScale.domain([0, newMaxValue])
+                            const yAxisTicks = yScale.ticks()
+                                .filter(tick => Number.isInteger(tick));
+                            const yAxis = d3.axisLeft(yScale)
+                                .tickValues(yAxisTicks)
+                                .tickFormat(d3.format('d'));
+
+                            chartGroup.select('.y-axis').call(yAxis);
+                            // 绑定新的数据到矩形上
+                            outerKeys.forEach((key, i) => {
+                                chartGroup.selectAll('.oldBarChart')
+                                    .attr('x', d => xScale(d) + i * (xScale.bandwidth() / outerKeys.length))
+                                    .attr('y', d => yScale(newData[key][d]))
+                                    .attr('width', xScale.bandwidth() / outerKeys.length)
+                                    .attr('height', d => chartHeight - yScale(newData[key][d]))
+                                    .attr('fill', d=> {
+                                        return getColorForValue(newData[key][d], newMinValue, newMaxValue);
+                                    })
+                                    .on('mouseover', function(event, d) {
+                                        d3.select(this).attr('opacity', 0.7);
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style('opacity', 0.8);
+                                        let tooltipContent
+                                        if(key===""){tooltipContent=`${d} : <strong>${newData[key][d]}</strong> `}
+                                        else{
+                                            tooltipContent=`${d}<br/>${key}: <strong>${newData[key][d]}</strong> `
+                                        }
+                                        tooltip.html(tooltipContent)
+                                            .style('left', (event.pageX)-containerRect.left + 'px')
+                                            .style('top', (event.pageY*0.98)-containerRect.top + 'px');
+                                    })
+                            });
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+            }, { deep: true });
+
+            store.watch(() => store.state.isClickCancelFilter, () => {
+                chartGroup.selectAll('.eventBarChart').remove()
+            });
+        }
 
         // 当取消筛选的时候也需要重新绘制
-        store.watch(() => store.state.isClickCancelFilter, () => {
-            chartGroup.selectAll('.eventBarChart').remove()
-        });
         const bbox = chartGroup.node().getBBox();
         svg.style("width",bbox.width+margin.left+margin.right)
         svg.style("height",bbox.height+margin.top)
@@ -1240,273 +1355,440 @@ export default {
             return null; // 或者返回其他默认值
         }
 
-        store.watch(() => store.state.globalHighlight, (newValue) => {
-            pieContainer.selectAll('.highlightArc').remove()
-            const filteredCodeContext = container.getAttribute("filteredCodeContext");
-            let keysInNewData
-            if (filteredCodeContext !== null && filteredCodeContext !== "") {
-                const code=container.getAttribute("filteredCodeContext")
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code })
-                    .then(response => {
-                        const newData = response.data['result']
-                        keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
+        // 创建框选区域
+        const setBrush = d3.brush()
+            .on("start brush", (event) => brushed(event));
 
-                        // 高亮柱状图
-                        const filledData = fillData(data, newData)
-                        highlightSeriesData = []
-                        for (const outerKey in filledData) {
-                            for (const innerKey in data[outerKey]) {
-                                highlightSeriesData.push({
-                                    name: innerKey,
-                                    value: filledData[outerKey][innerKey]
-                                });
-                            }
-                        }
-                        if(containerId!==store.state.curHighlightContainer){
-                            const newArc = d3.arc().outerRadius(d => {
-                                return radius * (findValueByName(highlightSeriesData, d.data.name) / d.data.value)}).innerRadius(0);
+        svg.append("g")
+            .attr("class", "setBrush")
 
-                            const newArcs = pieContainer.selectAll('highlightArc')
-                                .data(pie(seriesData))
-                                .enter()
-                                .append('g')
-                                .attr('class', 'highlightArc');
+        if(container.id!=="chart-container-default"){
+            store.watch(() => store.state.isClickBrush, () => {
+                svg.select(".setBrush").call(setBrush);
+            });
+        }
 
-                            newArcs.append('path')
-                                .attr('d', newArc)
-                                .attr('stroke', "#DCDCDC")
-                                // .attr('fill', (d) => getColorForValue(findValueByName(highlightSeriesData,d.data.name),minValue,maxValue))
-                                .attr('fill', "#A9A9A9")
-                                .on('mouseover', function (event, d) {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', 'url(#shadow)');
-                                    tooltip.transition()
-                                        .duration(200)
-                                        .style('opacity', 0.8);
+        // 判断扇区是否在框选区域内
+        function checkArcInSelection(arcData, x0, y0, x1, y1, centerX, centerY) {
+            const arcStartAngle = arcData.startAngle ; // 直接使用弧度
+            const arcEndAngle = arcData.endAngle ; // 直接使用弧度
+            const outerRadius = radius;
 
-                                    let tooltipContent
+            // 遍历框选区域的四个角点
+            const points = [
+                { x: x0, y: y0 },  // 左上角
+                { x: x1, y: y0 },  // 右上角
+                { x: x0, y: y1 },  // 左下角
+                { x: x1, y: y1 }   // 右下角
+            ];
 
-                                    tooltipContent=`${d.data.name}: <strong>${findValueByName(highlightSeriesData,d.data.name)}</strong> `
+            // 判断每个点是否在扇区内
+            for (const point of points) {
+                const dx = point.x - centerX;
+                const dy = centerY - point.y;
+                // 计算点的极坐标
+                const distance = Math.sqrt(dx * dx + dy * dy);  // 到饼图中心的距离
+                let angle = Math.atan2(dx, dy);
+                if (angle < 0) angle += 2 * Math.PI;  // 确保角度在 0 到 2*PI 之间
 
-                                    tooltip.html(tooltipContent)
-                                        .style('left', (event.pageX)-containerRect.left + 'px')
-                                        .style('top', (event.pageY)-containerRect.top + 'px');
-                                })
-                                .on('mouseout', function () {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', '');
-                                    tooltip.transition()
-                                        .duration(500)
-                                        .style('opacity', 0);
-                                })
-                                .on("click", function(event, d) {
-                                    event.stopPropagation();
-                                    const myObject = {};
-                                    myObject[foundKey] = d.data.name
-                                    changeGlobalHighlight(myObject, containerId)
-                                });
+                // 判断点是否在扇区的角度范围和半径范围内，处理跨越0度的扇区
+                const inAngleRange = arcStartAngle <= arcEndAngle
+                    ? (angle >= arcStartAngle && angle <= arcEndAngle)
+                    : (angle >= arcStartAngle || angle <= arcEndAngle);
 
-                            svg.append('defs').append('filter')
-                                .attr('id', 'shadow')
-                                .append('feDropShadow')
-                                .attr('dx', 0)
-                                .attr('dy', 0)
-                                .attr('stdDeviation', 4)
-                                .attr('flood-color', '#888888')
-                                .attr('flood-opacity', 0.7);
-                            updatePieChart()
-                        }
-                    })
-                    .catch(error => {
-                        console.error(error);
+                if (inAngleRange && distance <= outerRadius) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
+        function brushed(event) {
+            if (!event.selection) return;
+
+            const [x0, y0] = event.selection[0]; // 框选区域左上角
+            const [x1, y1] = event.selection[1]; // 框选区域右下角
+            const centerX = containerWidth / 2.4 ; // 饼图的中心X坐标
+            const centerY = containerHeight / 2; // 饼图的中心Y坐标
+
+            let selectedData = [];
+            let allData = []
+
+            // 遍历每个饼图的扇区
+            arcs.each(function(d) {
+                allData.push(d);
+                // 判断扇区是否与框选区域有重叠
+                const inSelection = checkArcInSelection(d, x0, y0, x1, y1, centerX, centerY);
+
+                if (inSelection) {
+                    // 如果扇区在框选范围内，提取对应的数据
+                    selectedData.push(d.data.name);
+                }
+
+            });
+
+            // 按照 d.value 从大到小排序
+            allData.sort(function(a, b) {
+                return a.value - b.value;
+            });
+
+            // 确保 selectedData 不为空，找到第一个和最后一个元素在 allData 中的下标
+            if (selectedData.length > 0) {
+                let firstIndex = allData.findIndex(function(d) {
+                    return d.data.name === selectedData[0];
+                });
+                // 找到 selectedData 最后一个元素在 allData 中的索引
+                let lastIndex = allData.findIndex(function(d) {
+                    return d.data.name === selectedData[selectedData.length - 1];
+                });
+
+                if (firstIndex > lastIndex) {
+                    [firstIndex, lastIndex] = [lastIndex, firstIndex]; // 直接交换 a 和 b 的值
+                }
+                // 提取 firstIndex 和 lastIndex 之间的所有元素，包括 firstIndex 和 lastIndex 本身
+                const slicedData = allData.slice(firstIndex, lastIndex + 1);
+
+                // 创建 finalData 数组，并将每个元素的 d.data 存入其中
+                const finalData = slicedData.map(function(d) {
+                    return isNaN(d.data.name) ? d.data.name : Number(d.data.name);
+                });
+
+                arcs.each(function(d) {
+                    d3.select(this).classed('shadow-effect', false); // 应用阴影效果
+
+                    // 判断扇区是否与框选区域有重叠
+                    if(!isNaN(d.data.name)) {
+                        d.data.name = Number(d.data.name);
+                    }
+
+                    const inShadow = finalData.includes(d.data.name);
+
+
+                    if (inShadow) {
+                        d3.select(this).classed('shadow-effect', true); // 应用阴影效果
+                    }
+                });
+
+                createSet1(x0, y0, x1, y1, finalData);
+            }
+        }
+
+        if(container.id!=="chart-container-default"){
+            store.watch(() => store.state.isClickCancelBrush, () => {
+                svg.select(".setBrush").call(setBrush.move, null);
+                svg.select(".setBrush").selectAll("*").remove();
+                svg.select(".setBrush").on(".setBrush", null);
+                arcs.each(function() {
+                    d3.select(this).classed('shadow-effect', false); // 应用阴影效果
+                });
+            });
+        }
+
+        function createBrushSet(containerId,selectedData){
+            const myDiv = document.getElementById(containerId)
+            const nodeId =myDiv.getAttribute("nodeId");
+            const rulesForInteractive = getRulesForInteractive(selectedData,containerId)
+            const value={"expression":[rulesForInteractive],"data":[selectedData]}
+            store.commit('setInteractionData',{ key:nodeId,value:value })
+        }
+
+        function createSet1(x0,y0,x1,y1,selectedData) {
+            // 移除旧的点击区域
+            svg.selectAll('.clickable-region').remove();
+            // 创建一个点击响应区域，是否加入异常序列
+            svg.append('rect')
+                .attr('class', 'set1-region')
+                .attr('x', x0)
+                .attr('y', y0)
+                .attr('width', x1 - x0)
+                .attr('height', y1 - y0)
+                .style('fill', 'none')
+                .style('pointer-events', 'all')
+                .on('click', () => {
+                    createBrushSet(containerId,selectedData)
+                    svg.select(".setBrush").call(setBrush.move, null);
+                    svg.select(".setBrush").selectAll("*").remove();
+                    svg.select(".setBrush").on(".setBrush", null);
+
+                    arcs.each(function() {
+                        d3.select(this).classed('shadow-effect', false); // 应用阴影效果
                     });
-            }
-        }, { deep: true });
+                })
+        }
 
-        store.watch(() => store.state.globalMouseover, (newValue) => {
-            pieContainer.selectAll('.mouseoverArc').remove()
-            const filteredCodeContext = container.getAttribute("mouseoverCodeContext");
-            let keysInNewData
-            if (filteredCodeContext !== null && filteredCodeContext !== "") {
-                const code=container.getAttribute("mouseoverCodeContext")
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code })
-                    .then(response => {
-                        const newData = response.data['result']
-                        keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
 
-                        mouseoverSeriesData = []
-                        const filledData = fillData(data, newData)
-                        for (const outerKey in filledData) {
-                            for (const innerKey in data[outerKey]) {
-                                mouseoverSeriesData.push({
-                                    name: innerKey,
-                                    value: filledData[outerKey][innerKey]
-                                });
+        if(container.id!=="chart-container-default"){
+            store.watch(() => store.state.globalHighlight, (newValue) => {
+                pieContainer.selectAll('.highlightArc').remove()
+                const filteredCodeContext = container.getAttribute("filteredCodeContext");
+                let keysInNewData
+                if (filteredCodeContext !== null && filteredCodeContext !== "") {
+                    const code=container.getAttribute("filteredCodeContext")
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code })
+                        .then(response => {
+                            const newData = response.data['result']
+                            keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
+
+                            // 高亮柱状图
+                            const filledData = fillData(data, newData)
+                            highlightSeriesData = []
+                            for (const outerKey in filledData) {
+                                for (const innerKey in data[outerKey]) {
+                                    highlightSeriesData.push({
+                                        name: innerKey,
+                                        value: filledData[outerKey][innerKey]
+                                    });
+                                }
                             }
-                        }
-                        if(containerId!==store.state.curMouseoverContainer){
-                            const newArc = d3.arc().outerRadius(d => {
-                                return radius * (findValueByName(mouseoverSeriesData,d.data.name) / d.data.value)}).innerRadius(0);
+                            if(containerId!==store.state.curHighlightContainer){
+                                const newArc = d3.arc().outerRadius(d => {
+                                    return radius * (findValueByName(highlightSeriesData, d.data.name) / d.data.value)}).innerRadius(0);
 
-                            const newArcs = pieContainer.selectAll('mouseoverArc')
-                                .data(pie(seriesData))
-                                .enter()
-                                .append('g')
-                                .attr('class', 'mouseoverArc');
+                                const newArcs = pieContainer.selectAll('highlightArc')
+                                    .data(pie(seriesData))
+                                    .enter()
+                                    .append('g')
+                                    .attr('class', 'highlightArc');
 
-                            newArcs.append('path')
-                                .attr('d', newArc)
-                                .attr('stroke', "#DCDCDC")
-                                // .attr('fill', (d) => getColorForValue(findValueByName(mouseoverSeriesData,d.data.name),minValue,maxValue))
-                                .attr('fill', "#eeeeee")
-                                .on('mouseover', function (event, d) {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', 'url(#shadow)');
-                                    tooltip.transition()
-                                        .duration(200)
-                                        .style('opacity', 0.8);
+                                newArcs.append('path')
+                                    .attr('d', newArc)
+                                    .attr('stroke', "#DCDCDC")
+                                    // .attr('fill', (d) => getColorForValue(findValueByName(highlightSeriesData,d.data.name),minValue,maxValue))
+                                    .attr('fill', "#A9A9A9")
+                                    .on('mouseover', function (event, d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', 'url(#shadow)');
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style('opacity', 0.8);
 
-                                    let tooltipContent
+                                        let tooltipContent
 
-                                    tooltipContent=`${d.data.name}: <strong>${findValueByName(mouseoverSeriesData,d.data.name)}</strong> `
+                                        tooltipContent=`${d.data.name}: <strong>${findValueByName(highlightSeriesData,d.data.name)}</strong> `
 
-                                    tooltip.html(tooltipContent)
-                                        .style('left', (event.pageX)-containerRect.left + 'px')
-                                        .style('top', (event.pageY)-containerRect.top + 'px');
-                                })
-                                .on('mouseout', function () {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', '');
-                                    tooltip.transition()
-                                        .duration(500)
-                                        .style('opacity', 0);
+                                        tooltip.html(tooltipContent)
+                                            .style('left', (event.pageX)-containerRect.left + 'px')
+                                            .style('top', (event.pageY)-containerRect.top + 'px');
+                                    })
+                                    .on('mouseout', function () {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', '');
+                                        tooltip.transition()
+                                            .duration(500)
+                                            .style('opacity', 0);
+                                    })
+                                    .on("click", function(event, d) {
+                                        event.stopPropagation();
+                                        const myObject = {};
+                                        myObject[foundKey] = d.data.name
+                                        changeGlobalHighlight(myObject, containerId)
+                                    });
 
-                                })
-                                .on("click", function(event, d) {
-                                    event.stopPropagation();
-                                    const myObject = {};
-                                    myObject[foundKey] = d.data.name
-                                    changeGlobalHighlight(myObject, containerId)
-                                });
-
-                            svg.append('defs').append('filter')
-                                .attr('id', 'shadow')
-                                .append('feDropShadow')
-                                .attr('dx', 0)
-                                .attr('dy', 0)
-                                .attr('stdDeviation', 4)
-                                .attr('flood-color', '#888888')
-                                .attr('flood-opacity', 0.7);
-                            updatePieChart()
-                        }
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            }
-        }, { deep: true });
-
-        store.watch(() => store.state.brushedEvent, (newValue) => {
-            pieContainer.selectAll('.eventArc').remove()
-            const brushedCodeContext = container.getAttribute("brushedCodeContext");
-            let keysInNewData
-            if (brushedCodeContext !== null && brushedCodeContext !== "") {
-                const code=container.getAttribute("brushedCodeContext")
-                axios.post('http://127.0.0.1:5000/executeCode', { code: code })
-                    .then(response => {
-                        const newData = response.data['result']
-                        keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
-
-                        eventSeriesData = []
-                        const filledData = fillData(data, newData)
-                        for (const outerKey in filledData) {
-                            for (const innerKey in data[outerKey]) {
-                                eventSeriesData.push({
-                                    name: innerKey,
-                                    value: filledData[outerKey][innerKey]
-                                });
+                                svg.append('defs').append('filter')
+                                    .attr('id', 'shadow')
+                                    .append('feDropShadow')
+                                    .attr('dx', 0)
+                                    .attr('dy', 0)
+                                    .attr('stdDeviation', 4)
+                                    .attr('flood-color', '#888888')
+                                    .attr('flood-opacity', 0.7);
+                                updatePieChart()
                             }
-                        }
-                        if(containerId!==store.state.curMouseoverContainer){
-                            const newArc = d3.arc().outerRadius(d => {
-                                return radius * (findValueByName(eventSeriesData,d.data.name) / d.data.value)}).innerRadius(0);
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+            }, { deep: true });
 
-                            const newArcs = pieContainer.selectAll('eventArc')
-                                .data(pie(seriesData))
-                                .enter()
-                                .append('g')
-                                .attr('class', 'eventArc');
+            store.watch(() => store.state.globalMouseover, (newValue) => {
+                pieContainer.selectAll('.mouseoverArc').remove()
+                const filteredCodeContext = container.getAttribute("mouseoverCodeContext");
+                let keysInNewData
+                if (filteredCodeContext !== null && filteredCodeContext !== "") {
+                    const code=container.getAttribute("mouseoverCodeContext")
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code })
+                        .then(response => {
+                            const newData = response.data['result']
+                            keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
 
-                            newArcs.append('path')
-                                .attr('d', newArc)
-                                .attr('stroke', "#DCDCDC")
-                                .attr('fill', (d) => getColorForValue(findValueByName(eventSeriesData,d.data.name),minValue,maxValue))
-                                .on('mouseover', function (event, d) {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', 'url(#shadow)');
-                                    tooltip.transition()
-                                        .duration(200)
-                                        .style('opacity', 0.8);
+                            mouseoverSeriesData = []
+                            const filledData = fillData(data, newData)
+                            for (const outerKey in filledData) {
+                                for (const innerKey in data[outerKey]) {
+                                    mouseoverSeriesData.push({
+                                        name: innerKey,
+                                        value: filledData[outerKey][innerKey]
+                                    });
+                                }
+                            }
+                            if(containerId!==store.state.curMouseoverContainer){
+                                const newArc = d3.arc().outerRadius(d => {
+                                    return radius * (findValueByName(mouseoverSeriesData,d.data.name) / d.data.value)}).innerRadius(0);
 
-                                    let tooltipContent
+                                const newArcs = pieContainer.selectAll('mouseoverArc')
+                                    .data(pie(seriesData))
+                                    .enter()
+                                    .append('g')
+                                    .attr('class', 'mouseoverArc');
 
-                                    tooltipContent=`${d.data.name}: <strong>${findValueByName(eventSeriesData,d.data.name)}</strong> `
+                                newArcs.append('path')
+                                    .attr('d', newArc)
+                                    .attr('stroke', "#DCDCDC")
+                                    // .attr('fill', (d) => getColorForValue(findValueByName(mouseoverSeriesData,d.data.name),minValue,maxValue))
+                                    .attr('fill', "#eeeeee")
+                                    .on('mouseover', function (event, d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', 'url(#shadow)');
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style('opacity', 0.8);
 
-                                    tooltip.html(tooltipContent)
-                                        .style('left', (event.pageX)-containerRect.left + 'px')
-                                        .style('top', (event.pageY)-containerRect.top + 'px');
-                                })
-                                .on('mouseout', function () {
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('filter', '');
-                                    tooltip.transition()
-                                        .duration(500)
-                                        .style('opacity', 0);
+                                        let tooltipContent
 
-                                })
-                                .on("click", function(event, d) {
-                                    event.stopPropagation();
-                                    const myObject = {};
-                                    myObject[foundKey] = d.data.name
-                                    changeGlobalHighlight(myObject, containerId)
-                                });
+                                        tooltipContent=`${d.data.name}: <strong>${findValueByName(mouseoverSeriesData,d.data.name)}</strong> `
 
-                            svg.append('defs').append('filter')
-                                .attr('id', 'shadow')
-                                .append('feDropShadow')
-                                .attr('dx', 0)
-                                .attr('dy', 0)
-                                .attr('stdDeviation', 4)
-                                .attr('flood-color', '#888888')
-                                .attr('flood-opacity', 0.7);
-                        }
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            }
-            else{
-                chartGroup.selectAll('.x-axis text')
-                    .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
-                    .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
-            }
-        }, { deep: true });
+                                        tooltip.html(tooltipContent)
+                                            .style('left', (event.pageX)-containerRect.left + 'px')
+                                            .style('top', (event.pageY)-containerRect.top + 'px');
+                                    })
+                                    .on('mouseout', function () {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', '');
+                                        tooltip.transition()
+                                            .duration(500)
+                                            .style('opacity', 0);
 
-        store.watch(() => store.state.isClickCancelFilter, () => {
-            pieContainer.selectAll('.eventArc').remove()
-        });
+                                    })
+                                    .on("click", function(event, d) {
+                                        event.stopPropagation();
+                                        const myObject = {};
+                                        myObject[foundKey] = d.data.name
+                                        changeGlobalHighlight(myObject, containerId)
+                                    });
+
+                                svg.append('defs').append('filter')
+                                    .attr('id', 'shadow')
+                                    .append('feDropShadow')
+                                    .attr('dx', 0)
+                                    .attr('dy', 0)
+                                    .attr('stdDeviation', 4)
+                                    .attr('flood-color', '#888888')
+                                    .attr('flood-opacity', 0.7);
+                                updatePieChart()
+                            }
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+            }, { deep: true });
+
+            store.watch(() => store.state.brushedEvent, (newValue) => {
+                pieContainer.selectAll('.eventArc').remove()
+                const brushedCodeContext = container.getAttribute("brushedCodeContext");
+                let keysInNewData
+                if (brushedCodeContext !== null && brushedCodeContext !== "") {
+                    const code=container.getAttribute("brushedCodeContext")
+                    axios.post('http://127.0.0.1:5000/executeCode', { code: code })
+                        .then(response => {
+                            const newData = response.data['result']
+                            keysInNewData =  Object.keys(newData[Object.keys(newData)[0]]);
+
+                            eventSeriesData = []
+                            const filledData = fillData(data, newData)
+                            for (const outerKey in filledData) {
+                                for (const innerKey in data[outerKey]) {
+                                    eventSeriesData.push({
+                                        name: innerKey,
+                                        value: filledData[outerKey][innerKey]
+                                    });
+                                }
+                            }
+                            if(containerId!==store.state.curMouseoverContainer){
+                                const newArc = d3.arc().outerRadius(d => {
+                                    return radius * (findValueByName(eventSeriesData,d.data.name) / d.data.value)}).innerRadius(0);
+
+                                const newArcs = pieContainer.selectAll('eventArc')
+                                    .data(pie(seriesData))
+                                    .enter()
+                                    .append('g')
+                                    .attr('class', 'eventArc');
+
+                                newArcs.append('path')
+                                    .attr('d', newArc)
+                                    .attr('stroke', "#DCDCDC")
+                                    .attr('fill', (d) => getColorForValue(findValueByName(eventSeriesData,d.data.name),minValue,maxValue))
+                                    .on('mouseover', function (event, d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', 'url(#shadow)');
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style('opacity', 0.8);
+
+                                        let tooltipContent
+
+                                        tooltipContent=`${d.data.name}: <strong>${findValueByName(eventSeriesData,d.data.name)}</strong> `
+
+                                        tooltip.html(tooltipContent)
+                                            .style('left', (event.pageX)-containerRect.left + 'px')
+                                            .style('top', (event.pageY)-containerRect.top + 'px');
+                                    })
+                                    .on('mouseout', function () {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('filter', '');
+                                        tooltip.transition()
+                                            .duration(500)
+                                            .style('opacity', 0);
+
+                                    })
+                                    .on("click", function(event, d) {
+                                        event.stopPropagation();
+                                        const myObject = {};
+                                        myObject[foundKey] = d.data.name
+                                        changeGlobalHighlight(myObject, containerId)
+                                    });
+
+                                svg.append('defs').append('filter')
+                                    .attr('id', 'shadow')
+                                    .append('feDropShadow')
+                                    .attr('dx', 0)
+                                    .attr('dy', 0)
+                                    .attr('stdDeviation', 4)
+                                    .attr('flood-color', '#888888')
+                                    .attr('flood-opacity', 0.7);
+                            }
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+                else{
+                    chartGroup.selectAll('.x-axis text')
+                        .style('font-weight', axisText => store.state.globalHighlight.includes(axisText) ? 'bold' : 'normal')
+                        .style('fill', axisText => store.state.globalHighlight.includes(axisText) ? '#F56C6C' : '#606266');
+                }
+            }, { deep: true });
+
+            store.watch(() => store.state.isClickCancelFilter, () => {
+                pieContainer.selectAll('.eventArc').remove()
+            });
+        }
+
         // 创建 ResizeObserver 实例
         const resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
@@ -1960,7 +2242,7 @@ export default {
         const resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
                 if (entry.contentBoxSize) {
-                  resizeLine()
+                    resizeLine()
                 }
             }
         });
@@ -2577,6 +2859,37 @@ export default {
                 store.commit('setInteractionData',{ key:nodeId,value:value })
             }
 
+            // function createSet1(x0,y0,x1,y1,selectedData) {
+            //     // 移除旧的点击区域
+            //     svg.selectAll('.clickable-region').remove();
+            //     // 创建一个点击响应区域，是否加入异常序列
+            //     svg.append('rect')
+            //         .attr('class', 'set1-region')
+            //         .attr('x', x0)
+            //         .attr('y', y0)
+            //         .attr('width', x1 - x0)
+            //         .attr('height', y1 - y0)
+            //         .style('fill', 'none')
+            //         .style('pointer-events', 'all')
+            //         .on('click', () => {
+            //             Swal.fire({
+            //                 title: 'Create data block?',
+            //                 icon: "question",
+            //                 showCloseButton: false,
+            //                 showCancelButton: true,
+            //                 showConfirmButton: true,
+            //                 confirmButtonColor: '#7cd1f9',
+            //                 cancelButtonColor: '#635CC3',
+            //                 confirmButtonText: 'Create',
+            //                 cancelButtonText: 'Cancel',
+            //                 focusConfirm: false,
+            //             }).then((result) => {
+            //                 if (result.isConfirmed) {
+            //                     createBrushSet(containerId,selectedData)
+            //                 }
+            //             })
+            //         })
+            // }
             function createSet1(x0,y0,x1,y1,selectedData) {
                 // 移除旧的点击区域
                 svg.selectAll('.clickable-region').remove();
@@ -2591,21 +2904,41 @@ export default {
                     .style('pointer-events', 'all')
                     .on('click', () => {
                         Swal.fire({
-                            title: 'Create data block?',
+                            title: 'Filter or create data block?',
                             icon: "question",
-                            showCloseButton: false,
-                            showCancelButton: true,
-                            showConfirmButton: true,
-                            confirmButtonColor: '#7cd1f9',
-                            cancelButtonColor: '#635CC3',
-                            confirmButtonText: 'Create',
-                            cancelButtonText: 'Cancel',
+                            showCloseButton: true,
+                            showCancelButton: false,
+                            showConfirmButton: false,
+                            confirmButtonText: 'Filter',
+                            cancelButtonText: 'Create',
                             focusConfirm: false,
+                            html: `
+                                <button id="btn1" class="swal2-confirm swal2-styled" style="background: #7cd1f9">Filter</button>
+                                <button id="btn2" class="swal2-confirm swal2-styled" style="background: #635CC3">Create</button>
+                                <button id="btn3" class="swal2-confirm swal2-styled" style="background: #f0ad4e">Both</button>
+                            `, // HTML content with three buttons
                         }).then((result) => {
-                            if (result.isConfirmed) {
-                                createBrushSet(containerId,selectedData)
-                            }
                         })
+                        // Add event listeners to the buttons after the SweetAlert2 has been displayed
+                        Swal.getPopup().querySelector('#btn1').addEventListener('click', () => {
+                            store.commit('setSelectFromPattern',selectedData)
+                            changeEventBrush(selectedData, containerId)
+                            Swal.close();
+                        });
+
+                        Swal.getPopup().querySelector('#btn2').addEventListener('click', () => {
+                            createBrushSet(containerId,selectedData)
+                            changePatternBrush(selectedData)
+                            Swal.close();
+                        });
+
+                        Swal.getPopup().querySelector('#btn3').addEventListener('click', () => {
+                            createBrushSet(containerId,selectedData)
+                            store.commit('setSelectFromPattern',selectedData)
+                            changeEventBrush(selectedData, containerId)
+                            changePatternBrush(selectedData)
+                            Swal.close();
+                        });
                     })
             }
 
@@ -2979,119 +3312,125 @@ export default {
             }
 
             // 监听选中的需要高亮的路径信息
-            store.watch(() => store.state.globalHighlight, (newValue) => {
-                // 点击图例变色
-                const code=container.getAttribute("codeContext")
-                const filterParameters = store.state.filterRules
-                const [dataKey] = code.split(".");
-                const originalData = store.state.originalTableData[dataKey]
-                const foundKey = findKeyByValue(originalData, Object.keys(data)[0]);
-                // 当筛选规则里面包含现有的键的时候才需要高亮分组条件
-                if(Object.keys(filterParameters).includes(foundKey)){
-                    // 获取所有键 对于筛选得到的键，需要对他进行高亮
-                    const keys = filterParameters[foundKey]
-                    svg.selectAll(".selected-username").classed("selected-username", false);
-                    keys.forEach(username => {
-                        const name = `username-${username}`;
-                        svg.select(`[username="${name}"]`)
-                            .classed("selected-username", true); // 添加高亮类
-                    });
-                }
-                else{
-                    svg.selectAll(".selected-username").classed("selected-username", false);
-                }
-                //高亮数据项
-                if(Object.keys(filterParameters).length!==0){
-                    const allKeys = Object.keys(filterParameters)
-                    for (let curKey of allKeys){
-                        const keys = filterParameters[curKey]
-                        const circles = svg.selectAll('.event-circle');
-                        if(aggVisBox.value==="气泡树图"){
-                            circles.classed('unpaired-event', function(d) {
-                                const str = d3.select(this).attr('id')
-                                const parts = str.split("-");
-                                let circleId = parts[parts.length - 1]; // 获取最后一个部分
-                                const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                const nameList = circlename.split("+")
-                                const firstname = nameList[0]
-                                if(Object.keys(data).includes(firstname)){
-                                    return !keys.includes(parseAction(data[firstname][curKey][circleId]))&&!d.children;
-                                }
-                            });
-                        }
-                        else{
-                            circles.classed('unpaired-event', function(d) {
-                                const str = d3.select(this).attr('id')
-                                const parts = str.split("-");
-                                let circleId = parts[parts.length - 1]; // 获取最后一个部分
-                                const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
-                                const nameList = circlename.split("+")
-                                const firstname = nameList[0]
-                                if(Object.keys(data).includes(firstname)){
-                                    if(data[firstname][curKey][circleId]){
-                                        return !keys.includes(parseAction(data[firstname][curKey][circleId]));
-                                    }
-                                }
-                            });
-                        }
-
-                        svg.selectAll(".sankeyLegendText")
-                            .classed('unhighlighted-text', function(d) {
-                                const textContent = d3.select(this).text();  // 正确获取当前元素的文本内容
-                                return !keys.includes(parseAction(textContent));
-                            });
-                        svg.selectAll(".sankeyLegendRect")
-                            .classed('unhighlighted-text', function(d) {
-                                const textContent = d3.select(this).attr("id");  // 正确获取当前元素的文本内容
-                                return !keys.includes(parseAction(textContent));
-                            });
-                    }
-                }
-                else{
-                    if(aggVisBox.value==="气泡树图"){
-                        svg.selectAll('.event-circle').classed('unpaired-event', false);
+            if(container.id!=="chart-container-default"){
+                store.watch(() => store.state.globalHighlight, (newValue) => {
+                    console.log("哈哈",container)
+                    // 点击图例变色
+                    const code=container.getAttribute("codeContext")
+                    const filterParameters = store.state.filterRules
+                    const [dataKey] = code.split(".");
+                    const originalData = store.state.originalTableData[dataKey]
+                    const foundKey = findKeyByValue(originalData, Object.keys(data)[0]);
+                    // 当筛选规则里面包含现有的键的时候才需要高亮分组条件
+                    if(Object.keys(filterParameters).includes(foundKey)){
+                        // 获取所有键 对于筛选得到的键，需要对他进行高亮
+                        const keys = filterParameters[foundKey]
+                        svg.selectAll(".selected-username").classed("selected-username", false);
+                        keys.forEach(username => {
+                            const name = `username-${username}`;
+                            svg.select(`[username="${name}"]`)
+                                .classed("selected-username", true); // 添加高亮类
+                        });
                     }
                     else{
-                        svg.selectAll('.event-circle').classed('unpaired-event', false);
-
+                        svg.selectAll(".selected-username").classed("selected-username", false);
                     }
-                    // 选择所有具有'sankeyLegendText'类的元素
-                    svg.selectAll('.sankeyLegendText')
-                        .classed('unhighlighted-text', false);
-                    svg.selectAll('.sankeyLegendRect')
-                        .classed('unhighlighted-text', false);
-                }
-            }, { deep: true });
+                    //高亮数据项
+                    if(Object.keys(filterParameters).length!==0){
+                        const allKeys = Object.keys(filterParameters)
+                        for (let curKey of allKeys){
+                            const keys = filterParameters[curKey]
+                            const circles = svg.selectAll('.event-circle');
+                            if(aggVisBox.value==="气泡树图"){
+                                circles.classed('unpaired-event', function(d) {
+                                    const str = d3.select(this).attr('id')
+                                    const parts = str.split("-");
+                                    let circleId = parts[parts.length - 1]; // 获取最后一个部分
+                                    const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
+                                    const nameList = circlename.split("+")
+                                    const firstname = nameList[0]
+                                    if(Object.keys(data).includes(firstname)){
+                                        return !keys.includes(parseAction(data[firstname][curKey][circleId]))&&!d.children;
+                                    }
+                                });
+                            }
+                            else{
+                                circles.classed('unpaired-event', function() {
+                                    const str = d3.select(this).attr('id')
+                                    const parts = str.split("-");
+                                    let circleId = parts[parts.length - 1]; // 获取最后一个部分
+                                    const circlename =  d3.select(this).attr('circleName').split("-")[1]; // 获取当前悬浮元素的className属性
+                                    const nameList = circlename.split("+")
+                                    const firstname = nameList[0]
+                                    if(Object.keys(data).includes(firstname)){
+                                        if(data[firstname][curKey][circleId]){
+                                            return !keys.includes(parseAction(data[firstname][curKey][circleId]));
+                                        }
+                                    }
+                                });
+                            }
+
+                            if(Object.keys(filterParameters).includes(seqView)){
+                                svg.selectAll(".sankeyLegendText")
+                                    .classed('unhighlighted-text', function() {
+                                        const textContent = d3.select(this).text();  // 正确获取当前元素的文本内容
+                                        return !keys.includes(parseAction(textContent));
+                                    });
+                                svg.selectAll(".sankeyLegendRect")
+                                    .classed('unhighlighted-text', function(d) {
+                                        const textContent = d3.select(this).attr("id");  // 正确获取当前元素的文本内容
+                                        return !keys.includes(parseAction(textContent));
+                                    });
+                            }
+                        }
+                    }
+                    else{
+                        if(aggVisBox.value==="气泡树图"){
+                            svg.selectAll('.event-circle').classed('unpaired-event', false);
+                        }
+                        else{
+                            svg.selectAll('.event-circle').classed('unpaired-event', false);
+
+                        }
+                        // 选择所有具有'sankeyLegendText'类的元素
+                        svg.selectAll('.sankeyLegendText')
+                            .classed('unhighlighted-text', false);
+                        svg.selectAll('.sankeyLegendRect')
+                            .classed('unhighlighted-text', false);
+                    }
+                }, { deep: true });
+            }
 
             // 监听选中的需要高亮的路径信息
-            store.watch(() => store.state.globalMouseover, (newValue) => {
-                const code=container.getAttribute("codeContext")
-                const filterParameters = store.state.mouseoverRules
-                const [dataKey] = code.split(".");
-                const originalData = store.state.originalTableData[dataKey]
-                const foundKey = findKeyByValue(originalData, Object.keys(data)[0]);
-                // 当筛选规则里面包含现有的键的时候才需要高亮分组条件
-                if(Object.keys(filterParameters).includes(foundKey)){
-                    // 获取所有键 对于筛选得到的键，需要对他进行高亮
-                    const keys = filterParameters[foundKey]
-                    svg.selectAll(".mouseover-username").classed("mouseover-username", false);
-                    keys.forEach(username => {
-                        const name = `username-${username}`;
-                        svg.select(`[username="${name}"]`)
-                            .classed("mouseover-username", true); // 添加高亮类
-                    });
-                }
-                else{
-                    svg.selectAll(".mouseover-username").classed("mouseover-username", false);
-                }
-                //高亮数据项
-                if(Object.keys(filterParameters).length!==0){
-                    const allKeys = Object.keys(filterParameters)
-                    for (let curKey of allKeys){
-                        const keys = filterParameters[curKey]
-                        const circles = svg.selectAll('.event-circle');
+            if(container.id!=="chart-container-default"){
+                store.watch(() => store.state.globalMouseover, (newValue) => {
+                    const code=container.getAttribute("codeContext")
+                    const filterParameters = store.state.mouseoverRules
+                    const [dataKey] = code.split(".");
+                    const originalData = store.state.originalTableData[dataKey]
+                    const foundKey = findKeyByValue(originalData, Object.keys(data)[0]);
+                    // 当筛选规则里面包含现有的键的时候才需要高亮分组条件
+                    if(Object.keys(filterParameters).includes(foundKey)){
+                        // 获取所有键 对于筛选得到的键，需要对他进行高亮
+                        const keys = filterParameters[foundKey]
+                        svg.selectAll(".mouseover-username").classed("mouseover-username", false);
+                        keys.forEach(username => {
+                            const name = `username-${username}`;
+                            svg.select(`[username="${name}"]`)
+                                .classed("mouseover-username", true); // 添加高亮类
+                        });
+                    }
+                    else{
+                        svg.selectAll(".mouseover-username").classed("mouseover-username", false);
+                    }
+                    //高亮数据项
+                    if(Object.keys(filterParameters).length!==0){
+                        const allKeys = Object.keys(filterParameters)
+                        for (let curKey of allKeys){
+                            const keys = filterParameters[curKey]
+                            const circles = svg.selectAll('.event-circle');
 
-                        circles.each(function(d) {
+                            circles.each(function(d) {
                                 const str = d3.select(this).attr('id')
                                 const parts = str.split("-");
                                 let circleId = parts[parts.length - 1]; // 获取最后一个部分
@@ -3105,30 +3444,31 @@ export default {
                                 }
                             });
 
-                        svg.selectAll(".sankeyLegendText")
-                            .each(function() {
-                                const legendText = d3.select(this);
-                                const textContent = legendText.text(); // 获取当前元素的文本内容
-                                if(keys.includes(parseAction(textContent))){
-                                    legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
-                                }
-                            });
-                        svg.selectAll(".sankeyLegendRect")
-                            .each(function() {
-                                const legendText = d3.select(this);
-                                const textContent = legendText.attr("id"); // 获取当前元素的文本内容
-                                if(keys.includes(parseAction(textContent))){
-                                    legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
-                                }
-                            });
+                            svg.selectAll(".sankeyLegendText")
+                                .each(function() {
+                                    const legendText = d3.select(this);
+                                    const textContent = legendText.text(); // 获取当前元素的文本内容
+                                    if(keys.includes(parseAction(textContent))){
+                                        legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
+                                    }
+                                });
+                            svg.selectAll(".sankeyLegendRect")
+                                .each(function() {
+                                    const legendText = d3.select(this);
+                                    const textContent = legendText.attr("id"); // 获取当前元素的文本内容
+                                    if(keys.includes(parseAction(textContent))){
+                                        legendText.classed('mouseover-legend', true); // 根据条件添加或移除类名
+                                    }
+                                });
+                        }
                     }
-                }
-                else{
-                    svg.selectAll(".mouseover-circle").classed("mouseover-circle", false);
-                    svg.selectAll('.sankeyLegendText').classed("mouseover-legend", false);
-                    svg.selectAll('.sankeyLegendRext').classed("mouseover-legend", false);
-                }
-            }, { deep: true });
+                    else{
+                        svg.selectAll(".mouseover-circle").classed("mouseover-circle", false);
+                        svg.selectAll('.sankeyLegendText').classed("mouseover-legend", false);
+                        svg.selectAll('.sankeyLegendRext').classed("mouseover-legend", false);
+                    }
+                }, { deep: true });
+            }
 
             const userLocation ={}
             const aggUserLocation = {}
@@ -3422,7 +3762,7 @@ export default {
                         const cx = parseFloat(d3.select(this).attr("cx")) + (circleRadius * 2 + circleSpacing) + usernameTextWidth["username"+containerId];
                         const cy = parseFloat(d3.select(this).attr("cy"));
                         const isSelected = x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
-                         if (isSelected) {
+                        if (isSelected) {
                             selectedData.push(parseAction(d.data.name.split("@")[0]));  // 将选中的数据添加到数组中
                         }
                         return isSelected;
@@ -3473,7 +3813,6 @@ export default {
             }
 
             async function filterByBrush(selectedData){
-                console.log("选择",selectedData)
                 let matchingSequences={}
                 const timeLineDict = store.state.timeLineData
                 const parentDiv = document.getElementsByClassName('grid-item block4')[0];
@@ -3577,9 +3916,13 @@ export default {
             });
 
             // 监听选中的异常事件
-            store.watch(() => store.state.selectedSeq, (newValue, oldValue) => {
+            store.watch(() => store.state.selectedSeq, (newValue) => {
                 const matchingSequences = findSequencesContainingSubsequence(data, newValue,seqView,true);
                 highlightSequences(matchingSequences);
+            });
+
+            store.watch(() => store.state.selectFromPattern, (newValue) => {
+                filterByBrush(newValue)
             });
 
             function showConfirmationDialog(data) {
@@ -3698,20 +4041,20 @@ export default {
                     .style("position","absolute")
                     .style("left", mouseX + "px")
                     .style("top", mouseY+0.02*containerHeight + "px");
-                })
-                .on("mouseout", function (d) {
-                    // 鼠标移出事件处理
-                    tooltip.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                });
+            })
+            .on("mouseout", function (d) {
+                // 鼠标移出事件处理
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
         nodes.append("text")
             .attr("dy", "0.31em")
             .attr("x", d => d.children ? -6 : 6)
             .style("text-anchor", d => d.children ? "end" : "start")
             .style("fill","#303133")
             .text(d => d.data.name);
-        },
+    },
 
     createAggTimeLine(containerId, data, seqView) {
         let sankeyNodesData=[]
@@ -3727,7 +4070,7 @@ export default {
         }
 
         data = flatten(data)
-        
+
         const container = document.getElementById(containerId);
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;

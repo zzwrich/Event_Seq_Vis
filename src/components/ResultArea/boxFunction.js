@@ -24,7 +24,6 @@ export function boxStyle(box) {
 
 export function handleIncrement(boxes, boxIndex, rootWidth, rootHeight, direction, containerId, selectId) {
     let box = boxes[boxIndex]
-    let select = box.isSelected
     if (!box) return;
     const gap = 1; // 间隙大小，单位为百分比
     const boxWidth= parseFloat(box.width.replace('%', ''))/100;

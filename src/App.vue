@@ -1,8 +1,8 @@
 <script setup>
-  import operBlock from "./components/OperBlock.vue"
   import operArea from "./components/OperArea/OperArea.vue"
   import filterArea from "./components/MainArea/FilterArea.vue"
   import resultArea from "./components/ResultArea/ResultArea.vue"
+  import tempView from "./components/ResultArea/TempView.vue"
 
 </script>
 
@@ -17,6 +17,9 @@
 		<div class="grid-item block4">
       <result-area />
 		</div>
+    <div class="grid-item block5">
+      <temp-view />
+    </div>
 <!--		<div class="grid-item block5">-->
 <!--      <oper-block />-->
 <!--		</div>-->

@@ -2,7 +2,7 @@
   <div class="data-table-container" id="divBlock">
     <el-table
         :data="tableRows"
-        style="cursor: pointer;font-size: 1vh;height:97%;top: 3%;width: 98%;left: 1%;border-radius: 5px;"
+        style="cursor: pointer;font-size: 0.8vh;height:97%;top: 3%;width: 98%;left: 1%;border-radius: 5px;"
         @header-click="headerClicked"
     >
       <el-table-column
@@ -42,12 +42,22 @@ export default {
       },
       deep: true,
       immediate: true,
-    }
+    },
   },
   computed: {
     sheetNames() {
+
       // 获取所有sheet的名称
-      return Object.keys(this.tableData);
+      const names = Object.keys(this.tableData);
+
+      // 如果有sheetNames，并且是首次加载，调用 triggerHeaderClick
+      if (names.length > 0) {
+        this.$nextTick(() => {
+          this.triggerHeaderClick(names);
+        });
+      }
+
+      return names;
     },
     tableRows() {
       // 计算表格的行数据
@@ -67,10 +77,20 @@ export default {
     },
   },
   methods: {
-    headerClicked(column, event) {
+    headerClicked(column) {
       this.$store.dispatch('saveIsSelectData');
       this.$store.dispatch('saveSelectedData', column.label || column.prop);
     },
+
+    triggerHeaderClick(names) {
+      // 模拟点击第一个表头
+      const firstColumn = names[0]; // 假设触发第一个表头的点击
+      if (firstColumn) {
+        const column = { label: firstColumn }; // 模拟一个表头对象
+        this.headerClicked(column); // 手动调用点击事件
+      }
+    },
+
     printFirstSheetInfo() {
       const sheetName = Object.keys(this.tableData)[0]
       this.$store.dispatch('saveSheetName', sheetName);
@@ -99,5 +119,11 @@ export default {
   top: 8%; /* 底部与父容器底部对齐 */
   max-height: 100%;
   overflow: auto; /* 如果内容超出最大高度，显示滚动条 */
+}
+
+.clickable-cell {
+  height: 15px;
+  line-height: 15px;
+  overflow: hidden;
 }
 </style>

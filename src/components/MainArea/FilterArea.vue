@@ -2,20 +2,32 @@
   <div class="uploadArea" id="divBlock">
 <!--    <span class="module-title">Data Source</span>-->
     <span style="margin-left: 15px;color: #666666;font-weight: bold;">Data Source</span>
-    <el-upload
-        class="upload-demo"
-        action="http://127.0.0.1:5000/uploadFile"
-        :on-success="handleSuccess"
-        :file-list="fileList"
-        :fileType="fileType"
-        :show-file-list="false"
-        :before-upload="beforeUpload"
-        style="flex: 1; display: flex; justify-content: flex-end;margin-right: 10px"
-    >
-      <el-button size="small" style="position:relative; cursor: pointer;">
-        <upload style="width: 15px;height: 15px;cursor: pointer;color: #606266"></upload>
-      </el-button>
-    </el-upload>
+<!--    <el-upload-->
+<!--        class="upload-demo"-->
+<!--        action="http://127.0.0.1:5000/uploadFile"-->
+<!--        :on-success="handleSuccess"-->
+<!--        :file-list="fileList"-->
+<!--        :fileType="fileType"-->
+<!--        :show-file-list="false"-->
+<!--        :before-upload="beforeUpload"-->
+<!--        style="flex: 1; display: flex; justify-content: flex-end;margin-right: 10px"-->
+<!--    >-->
+<!--      <el-button size="small" style="position:relative; cursor: pointer;">-->
+<!--        <upload style="width: 15px;height: 15px;cursor: pointer;color: #606266"></upload>-->
+<!--      </el-button>-->
+<!--    </el-upload>-->
+
+<!--    要删掉-->
+    <el-select v-model="selectedFileUrl" placeholder="选择文件" style="flex: 1; display: flex; justify-content: flex-end;margin-right: 10px">
+      <el-option
+          v-for="file in availableFiles"
+          :key="file.name"
+          :label="file.name"
+          :value="file.name"
+      ></el-option>
+    </el-select>
+    <el-button @click="handleFileSelection">加载文件</el-button>
+
   </div>
   <div class="tool" id="divBlock">
     <span class="module-title">Tool</span>
@@ -27,7 +39,7 @@
   <div class="colormap" id="divBlock" style='width: 46%'>
     <span class="module-color">ColorMap</span>
     <el-select v-model="selected" placeholder="Color By"
-               style="border: none;top: 22%;width: 100%;background:none;left: 3%;"
+               style="border: none;top: 29%;width: 100%;background:none;left: 3%;" class="custom-select"
                size="small" @change="handleSelectChange">
       <el-option
           v-for="item in colorOptions"
@@ -73,6 +85,7 @@ import "./style.css"
 import { mapState } from 'vuex';
 import store from "@/store/index.js";
 import {Upload} from "@element-plus/icons-vue";
+import * as XLSX from 'xlsx';
 
 export default {
   components:{
@@ -100,7 +113,15 @@ export default {
       colorOptions: [],
       colormapData: [],
       selected: '',
-      inputSupport: ""
+      inputSupport: "",
+
+      //临时加一下
+      availableFiles: [
+        { name: 'updated.xlsx', url: '/api/updated.xlsx' },
+        { name: 'file1.xlsx', url: '/api/updated.xlsx' }
+        // 可以继续添加其他文件信息
+      ],
+      selectedFileUrl: null, // 选中的文件名
     };
   },
   computed: {
@@ -155,8 +176,19 @@ export default {
           lastOperation = lastMatch.slice(1, lastMatch.indexOf('('));
 
           if(lastOperation!=="filter" && lastOperation!=="unique_attr" ){
-            if (this.codeInput.includes("view_type")) {
-              this.executeCode()
+
+            if(lastOperation === "group_by"){
+              const codeContext = store.state.curExpression
+              const regex = /group_by\("([^"]+)"\)/g; // 使用全局标志`g`进行全文搜索
+              const matches = codeContext.matchAll(regex);
+              if(Array.from(matches).length!==0){
+                this.executeCode()
+              }
+            }
+            else{
+              if (this.codeInput.includes("view_type")) {
+                this.executeCode()
+              }
             }
           }
           else{
@@ -178,6 +210,39 @@ export default {
     }
   },
   methods: {
+    // 删删删
+    async handleFileSelection() {
+      if (this.selectedFileUrl) {
+        try {
+          // 下载文件
+          const response = await axios.get('/api'+this.selectedFileUrl, {
+            responseType: 'blob', // 获取 Blob 类型数据
+          });
+
+          // 创建文件对象
+          const fileName = this.selectedFileUrl.split('/').pop(); // 从 URL 中提取文件名
+          const file = new File([response.data], fileName, { type: response.data.type });
+
+          // 创建 FormData 对象
+          const formData = new FormData();
+          formData.append('file', file);
+
+          // 上传到服务器
+          const uploadResponse = await axios.post('http://127.0.0.1:5000/uploadFile', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+
+          // 上传成功后的处理
+          this.handleSuccess(uploadResponse.data);
+        } catch (error) {
+          console.error('Error uploading file:', error);
+        }
+      }
+    },
+    // 删删删
+
     clickSupport(){
       if(this.inputSupport!==""){
         store.dispatch('saveCurMinSupport',this.inputSupport +"%")
@@ -241,8 +306,10 @@ export default {
     },
 
     handleSuccess(response, file, fileList) {
+      console.log(":re",response)
       this.responseFileData = response
     },
+
     // 找按照什么来进行事件序列的可视化
     extractSeqViewContent(str) {
       const regex = /(seq|agg)_view\("([^"]+)"\)/;
@@ -376,7 +443,7 @@ export default {
   width: 88% !important;
   margin-left: 6%;
   top: 26%;
-  border: 1.3px solid #dddfe5;
+  border: 1px solid #dddfe5;
   border-radius: 3px;
 }
 
@@ -410,7 +477,7 @@ export default {
 #support-input {
   border: none;
   border-radius: 4px;
-  height: 2.5vh;
+  height: 2vh;
   margin-left: 1px;
   box-sizing: border-box;
   transition: border-color .2s;
@@ -420,4 +487,9 @@ export default {
   left:68%;
   padding-right: 20px; /* Space for percent symbol */
 }
+
+::v-deep .el-input__wrapper {
+  height: 2vh;
+}
+
 </style>

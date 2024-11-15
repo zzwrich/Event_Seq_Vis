@@ -1,4 +1,7 @@
 <template>
+<!--  <div class="defaultView" id="chart-container-default">-->
+<!--    <div id="chart-container-default" class="chart-container" @click="selectDefaultChart() && $event.stopPropagation()" style="position: relative;height: 95.5%; width: 100%; overflow: auto; top: 3vh;"></div>-->
+<!--  </div>-->
   <div v-for="(box,index) in boxes" :key="box.id" :class="boxClass(box)" :style="boxStyle(box)" @click="selectBox(box)">
     <!--图表容器-->
     <div :id="`chart-container-${box.id}`" class="chart-container" @click="selectChart(box) && $event.stopPropagation()" style="position: relative;height: 95.5%; width: 100%; overflow: auto; top: 3vh;"></div>
@@ -32,8 +35,8 @@ const boxes = ref([{ id: 0, trueId:0, parentId:-1, width: '100%', height: '100%'
 // 定义全局变量
 let rootWidth = 1;
 let rootHeight = 1;
-let containerId = {string: 'chart-container-0'}
-let selectId = {string: 'chart-container-0'}
+let containerId = {string: 'chart-container-default'}
+let selectId = {string: 'chart-container-default'}
 
 // 判断 chart-container 是否包含元素
 function selectChart(box) {
@@ -70,6 +73,9 @@ function selectBox(curBox) {
   selectId.string = containerId.string
 }
 
+function selectDefaultChart(){
+}
+
 watch(() => store.state.selectBox, (newValue, oldValue) => {
   if(newValue!==containerId.string){
     boxes.value.forEach(box => {
@@ -85,7 +91,8 @@ watch(() => store.state.responseData, (newValue) => {
   const data = newValue.result
   const visualType=store.state.visualType
   const seqView=store.state.seqView
-  if(containerId.string === selectId.string){
+
+  if((containerId.string === selectId.string)||containerId==="chart-container-default"){
     dataVisual.chooseWhich(operation, containerId.string, data, visualType, seqView)
     //给点击的容器绑定执行的代码
     const myDiv = document.getElementById(containerId.string);
@@ -119,6 +126,15 @@ onMounted(() => {
 .imgContainer{
   height: 20px;
   margin-top: 2px
+}
+
+.defaultView {
+  position: absolute;
+  left: -19.8%;
+  top:58.5%;
+  width:19%;
+  height: 41%;
+  //background: white
 }
 </style>
 

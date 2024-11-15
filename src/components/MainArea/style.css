@@ -33,8 +33,8 @@
 }
 .tool {
 	position: absolute;
-	top: 39%;
-	height: 5%;
+	top: 39.5%;
+	height: 6%;
 	border-radius: 5px;
 	background: white;
 	margin-bottom: 30px;
@@ -46,12 +46,12 @@
 	width: 22px;
 	height: 22px;
 	margin-left: 6%;
-	margin-top: 15px;
+	margin-top: 19px;
 	cursor: pointer;
 }
 .module-title {
 	position: absolute;
-	top: -8px;
+	top: -10px;
 	left: 10px;
 	background: white;
 	padding: 0 5px;
@@ -61,8 +61,8 @@
 }
 .colormap {
 	position: absolute;
-	top: 47%;
-	height: 5%;
+	top: 49%;
+	height: 6%;
 	border-radius: 5px;
 	background: white;
 	margin-bottom: 30px;
@@ -82,8 +82,8 @@
  /*历史记录面板样式 */
 .history{
 	position: absolute;
-	top: 55%;
-	height: 44%;
+	top: 58.5%;
+	height: 40%;
 	width: 96%;
 }
 .historyPanel {
@@ -93,16 +93,17 @@
 	height: 97%;
 	top: 3%;
 	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 .historyList {
 	list-style: none;
-	padding: 0;
+	padding: 0 0 0 5px;
 }
 
 .historyItem {
 	padding: 5px 15px 5px 10px;
-	width: 75%;
+	width: 88%;
 	word-break:break-all;
 	border-bottom: 1px solid #ddd;
 	cursor: pointer;
@@ -118,10 +119,16 @@
 	background-color: #e0e0e0;
 }
 
+.searchBox{
+	width: 94% ;
+	margin-left: 10px;
+	margin-bottom: 5px;
+}
+
 .deleteBtn {
 	position: absolute;
 	margin-top: 0;
-	right: 3%;
+	right: 1%;
 	/*bottom: 2%;*/
 }
 /*导航栏*/
@@ -137,10 +144,4 @@
 .el-table__header th {
 	background-color: #f5f5f5 !important;
 	color: #333;
-}
-
-.searchBox{
-	width: 98% !important;
-	margin-left: 1%;
-	font-size: 80% !important;
 }
